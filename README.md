@@ -70,6 +70,96 @@ Lists all running nodes in the cluster
 ]
 ```
 
+## `* /nodes/proxy/:filter/*path`
+
+Proxies a request to the node with the matching ID or type. The filter can be
+either the node ID or the node type. The path is the path to the API endpoint on
+the node.
+
+The request body is streamed and proxied to each matching node and the response array is
+returned back to the client. Since the response for each proxied request is buffered
+in memory, it is not recommended to use this endpoint when a large response is expected.
+
+This is particularly useful for updating settings for all nodes in a cluster.
+
+Example:
+```sh
+curl http://localhost:3001/nodes/proxy/hostd/api/state
+```
+```json
+[
+        {
+                "nodeID": "7762f569131ca047",
+                "statusCode": 200,
+                "data": {
+                        "publicKey": "ed25519:b6c094cebfd8e4b321eedcbced94df0df7afae3ac811812fb0c8bc1e1b3412bf",
+                        "lastAnnouncement": {
+                                "index": {
+                                        "height": 213,
+                                        "id": "bid:ea2f489547baeea20037dad4074b56a33baabd430822b18715f0da1049fbae17"
+                                },
+                                "address": "[::]:56884"
+                        },
+                        "startTime": "2024-08-16T20:37:53.543713-07:00",
+                        "explorer": {
+                                "enabled": true,
+                                "url": "https://api.siascan.com"
+                        },
+                        "version": "?",
+                        "commit": "?",
+                        "os": "darwin",
+                        "buildTime": "1969-12-31T16:00:00-08:00"
+                }
+        },
+        {
+                "nodeID": "1541a08b2d365c1f",
+                "statusCode": 200,
+                "data": {
+                        "publicKey": "ed25519:b8d51d2dd3902c1c78d278871d40ced7e07e8b3f1051e53c8b2fdf65a8376eff",
+                        "lastAnnouncement": {
+                                "index": {
+                                        "height": 222,
+                                        "id": "bid:8e3d7aab6e612c402afcb785bd757a3b7fd5e31cd3e76603d22a6b45c05d59ac"
+                                },
+                                "address": "[::]:56887"
+                        },
+                        "startTime": "2024-08-16T20:37:53.543713-07:00",
+                        "explorer": {
+                                "enabled": true,
+                                "url": "https://api.siascan.com"
+                        },
+                        "version": "?",
+                        "commit": "?",
+                        "os": "darwin",
+                        "buildTime": "1969-12-31T16:00:00-08:00"
+                }
+        },
+        {
+                "nodeID": "1e6b324862be4fac",
+                "statusCode": 200,
+                "data": {
+                        "publicKey": "ed25519:fadf3d2b5856ffe077a8b6753529a3dbfabd5355e898c06f013bac74563b48a2",
+                        "lastAnnouncement": {
+                                "index": {
+                                        "height": 213,
+                                        "id": "bid:ea2f489547baeea20037dad4074b56a33baabd430822b18715f0da1049fbae17"
+                                },
+                                "address": "[::]:56881"
+                        },
+                        "startTime": "2024-08-16T20:37:53.543713-07:00",
+                        "explorer": {
+                                "enabled": true,
+                                "url": "https://api.siascan.com"
+                        },
+                        "version": "?",
+                        "commit": "?",
+                        "os": "darwin",
+                        "buildTime": "1969-12-31T16:00:00-08:00"
+                }
+        }
+]
+```
+
 ### `POST /mine` 
 
 Mines a preset number of blocks on the testnet
