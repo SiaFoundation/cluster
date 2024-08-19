@@ -28,6 +28,9 @@ import (
 	"lukechampine.com/frand"
 )
 
+// Renterd starts a new renterd node. It listens on random ports and registers
+// itself with the provided Manager. This function blocks until the context is
+// canceled. All resources will be cleaned up before the function returns.
 func Renterd(ctx context.Context, baseDir string, pk types.PrivateKey, cm *chain.Manager, s *syncer.Syncer, nm *Manager, log *zap.Logger) error {
 	node := Node{
 		ID:            NodeID(frand.Bytes(8)),

@@ -11,14 +11,17 @@ import (
 	"go.sia.tech/core/types"
 )
 
+// Types for the supported nodes.
 const (
 	NodeTypeRenterd = NodeType("renterd")
 	NodeTypeHostd   = NodeType("hostd")
 	NodeTypeWalletd = NodeType("walletd")
 )
 
+// A NodeType represents the type of a node.
 type NodeType string
 
+// A NodeID is a unique identifier for a node.
 type NodeID [8]byte
 
 // String returns the hexadecimal representation of the NodeID.
@@ -40,6 +43,7 @@ func (id *NodeID) UnmarshalText(text []byte) error {
 	return err
 }
 
+// A Node represents a running node in the cluster.
 type Node struct {
 	ID   NodeID   `json:"id"`
 	Type NodeType `json:"type"`
@@ -50,23 +54,28 @@ type Node struct {
 	WalletAddress types.Address `json:"walletAddress"`
 }
 
+// A Manager manages a set of nodes in the cluster.
 type Manager struct {
 	mu    sync.Mutex
 	nodes map[NodeID]Node
 }
 
+// Put adds a node to the manager.
 func (m *Manager) Put(node Node) {
 	m.mu.Lock()
 	m.nodes[node.ID] = node
 	m.mu.Unlock()
 }
 
+// Delete removes a node from the manager.
+// The node is not stopped.
 func (m *Manager) Delete(id NodeID) {
 	m.mu.Lock()
 	delete(m.nodes, id)
 	m.mu.Unlock()
 }
 
+// Nodes returns a slice of all running nodes in the manager.
 func (m *Manager) Nodes() []Node {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -85,6 +94,7 @@ func createNodeDir(baseDir string, id NodeID) (dir string, err error) {
 	return
 }
 
+// NewManager creates a new node manager.
 func NewManager() *Manager {
 	return &Manager{
 		nodes: make(map[NodeID]Node),

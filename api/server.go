@@ -38,6 +38,7 @@ type (
 		BroadcastV2BlockOutline(bo gateway.V2BlockOutline)
 	}
 
+	// Nodes manages the set of nodes in the cluster.
 	Nodes interface {
 		Nodes() []nodes.Node
 	}
@@ -185,6 +186,7 @@ func (srv *server) proxyNodeAPI(jc jape.Context) {
 	jc.Encode(responses)
 }
 
+// Handler returns an http.Handler that serves the API.
 func Handler(cm ChainManager, s Syncer, n Nodes, log *zap.Logger) http.Handler {
 	srv := &server{
 		chain:  cm,
