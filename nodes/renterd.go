@@ -240,6 +240,9 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 		}
 	}()
 	workerHandler = jape.BasicAuth("sia is cool")(w.Handler())
+	if _, err := workerClient.Account(context.Background(), types.PublicKey{}); err != nil {
+		panic(err)
+	}
 
 	ap, err := autopilot.New(config.Autopilot{
 		AccountsRefillInterval:         time.Second,
@@ -247,7 +250,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 		ID:                             api.DefaultAutopilotID,
 		MigrationHealthCutoff:          0.99,
 		MigratorParallelSlabsPerWorker: 1,
-		RevisionSubmissionBuffer:       0,
+		RevisionSubmissionBuffer:       10,
 		ScannerInterval:                time.Second,
 		ScannerBatchSize:               10,
 		ScannerNumThreads:              1,
@@ -256,6 +259,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 		return fmt.Errorf("failed to create autopilot: %w", err)
 	}
 	defer ap.Shutdown(ctx)
+	go ap.Run()
 	autopilotHandler = jape.BasicAuth("sia is cool")(ap.Handler())
 
 	log.Info("node started", zap.Stringer("http", apiListener.Addr()))
@@ -285,6 +289,83 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 		return fmt.Errorf("failed to update autopilot config: %w", err)
 	}
 
+	// Finish worker setup.
+	if err := w.Setup(ctx, node.APIAddress+"/api/worker", "sia is cool"); err != nil {
+		return fmt.Errorf("failed to setup worker: %w", err)
+	} else if err := busClient.SetContractSet(ctx, "autopilot", nil); err != nil {
+		return fmt.Errorf("failed to set contract set: %w", err)
+	}
+
+	err = busClient.UpdateAutopilot(ctx, api.Autopilot{
+		ID: api.DefaultAutopilotID,
+		Config: api.AutopilotConfig{
+			Contracts: api.ContractsConfig{
+				Set:         "autopilot",
+				Amount:      1000,
+				Allowance:   types.Siacoins(1000000),
+				Period:      4320,
+				RenewWindow: 144 * 7,
+				Download:    1 << 30,
+				Upload:      1 << 30,
+				Storage:     1 << 30,
+				Prune:       false,
+			},
+			Hosts: api.HostsConfig{
+				AllowRedundantIPs:     true,
+				MaxDowntimeHours:      1440,
+				MinProtocolVersion:    "1.6.0",
+				MinRecentScanFailures: 100,
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update autopilot: %w", err)
+	}
+
+	err = busClient.UpdateSetting(ctx, api.SettingGouging, api.GougingSettings{
+		MaxRPCPrice:      types.Siacoins(1).Div64(1000),        // 1mS per RPC
+		MaxContractPrice: types.Siacoins(10),                   // 10 SC per contract
+		MaxDownloadPrice: types.Siacoins(1).Mul64(1000),        // 1000 SC per 1 TiB
+		MaxUploadPrice:   types.Siacoins(1).Mul64(1000),        // 1000 SC per 1 TiB
+		MaxStoragePrice:  types.Siacoins(1000).Div64(144 * 30), // 1000 SC per month
+
+		HostBlockHeightLeeway: 240, // amount of leeway given to host block height
+
+		MinPriceTableValidity:         10 * time.Second,  // minimum value for price table validity
+		MinAccountExpiry:              time.Hour,         // minimum value for account expiry
+		MinMaxEphemeralAccountBalance: types.Siacoins(1), // 1SC
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update setting: %w", err)
+	}
+	err = busClient.UpdateSetting(ctx, api.SettingContractSet, api.ContractSetSetting{
+		Default: "autopilot",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update setting: %w", err)
+	}
+	err = busClient.UpdateSetting(ctx, api.SettingPricePinning, api.PricePinSettings{
+		Enabled: false,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update setting: %w", err)
+	}
+	err = busClient.UpdateSetting(ctx, api.SettingRedundancy, api.RedundancySettings{
+		MinShards:   2,
+		TotalShards: 3,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update setting: %w", err)
+	}
+	err = busClient.UpdateSetting(ctx, api.SettingS3Authentication, api.S3AuthenticationSettings{
+		V4Keypairs: map[string]string{
+			"TESTINGYNHUWCPKOPSYQ": "Rh30BNyj+qNI4ftYRteoZbHJ3X4Ln71QtZkRXzJ9",
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update setting: %w", err)
+	}
+
 	if _, err := autopilotClient.Trigger(true); err != nil {
 		return fmt.Errorf("failed to trigger autopilot: %w", err)
 	}
@@ -293,6 +374,8 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 	walletAddress := types.StandardUnlockHash(pk.PublicKey())
 	if err := m.MineBlocks(ctx, 200, walletAddress); err != nil {
 		return fmt.Errorf("failed to mine blocks: %w", err)
+	} else if _, err := autopilotClient.Trigger(true); err != nil {
+		return fmt.Errorf("failed to trigger autopilot: %w", err)
 	}
 	m.Put(node)
 	if ready != nil {
