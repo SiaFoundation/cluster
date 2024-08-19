@@ -165,7 +165,14 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 	var workerHandler, busHandler, autopilotHandler http.Handler
 	server := &http.Server{
 		Handler: jape.BasicAuth("sia is cool")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasPrefix(r.URL.Path, "/api/worker") {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "*")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.Header().Set("Access-Control-Expose-Headers", "*")
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			} else if strings.HasPrefix(r.URL.Path, "/api/worker") {
 				r.URL.Path = strings.TrimPrefix(r.URL.Path, "/api/worker")
 				workerHandler.ServeHTTP(w, r)
 				return

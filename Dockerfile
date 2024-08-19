@@ -26,9 +26,8 @@ ENV PGID=0
 
 # copy binary and prepare data dir.
 COPY --from=builder /app/bin/* /usr/bin/
-VOLUME [ "/data" ]
 
-EXPOSE 3000
+EXPOSE 3001/tcp
 
 USER ${PUID}:${PGID}
 
