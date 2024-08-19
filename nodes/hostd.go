@@ -214,7 +214,6 @@ func (m *Manager) StartHostd(ctx context.Context, ready chan<- struct{}) error {
 		api.ServerWithWebhooks(wr),
 		api.ServerWithPinnedSettings(pm),
 		api.ServerWithExplorer(ex)))
-
 	server := http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")

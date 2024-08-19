@@ -164,7 +164,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 
 	var workerHandler, busHandler, autopilotHandler http.Handler
 	server := &http.Server{
-		Handler: jape.BasicAuth("sia is cool")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Access-Control-Allow-Methods", "*")
 			w.Header().Set("Access-Control-Allow-Headers", "*")
@@ -186,7 +186,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 				return
 			}
 			http.NotFound(w, r)
-		})),
+		}),
 		ReadTimeout: 15 * time.Second,
 	}
 	defer server.Close()
@@ -210,7 +210,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 			log.Error("failed to shutdown bus", zap.Error(err))
 		}
 	}()
-	busHandler = b.Handler()
+	busHandler = jape.BasicAuth("sia is cool")(b.Handler())
 
 	apiAddr := apiListener.Addr().String()
 	busClient := bus.NewClient(fmt.Sprintf("http://%s/api/bus", apiAddr), "sia is cool")
@@ -239,7 +239,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 			log.Error("failed to shutdown worker", zap.Error(err))
 		}
 	}()
-	workerHandler = w.Handler()
+	workerHandler = jape.BasicAuth("sia is cool")(w.Handler())
 
 	ap, err := autopilot.New(config.Autopilot{
 		AccountsRefillInterval:         time.Second,
@@ -256,7 +256,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 		return fmt.Errorf("failed to create autopilot: %w", err)
 	}
 	defer ap.Shutdown(ctx)
-	autopilotHandler = ap.Handler()
+	autopilotHandler = jape.BasicAuth("sia is cool")(ap.Handler())
 
 	log.Info("node started", zap.Stringer("http", apiListener.Addr()))
 	node.APIAddress = "http://" + apiListener.Addr().String()
