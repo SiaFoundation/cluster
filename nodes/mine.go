@@ -1,4 +1,4 @@
-package api
+package nodes
 
 import (
 	"context"
@@ -6,11 +6,12 @@ import (
 	"errors"
 
 	"go.sia.tech/core/types"
+	"go.sia.tech/coreutils/chain"
 )
 
 // mineBlock constructs a block from the provided address and the transactions
 // in the txpool, and attempts to find a nonce for it that meets the PoW target.
-func mineBlock(ctx context.Context, cm ChainManager, addr types.Address) (types.Block, error) {
+func mineBlock(ctx context.Context, cm *chain.Manager, addr types.Address) (types.Block, error) {
 	cs := cm.TipState()
 	txns := cm.PoolTransactions()
 	v2Txns := cm.V2PoolTransactions()

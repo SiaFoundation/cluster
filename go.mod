@@ -6,7 +6,7 @@ require (
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	go.sia.tech/core v0.4.4-0.20240814175157-ebc804c7119c
 	go.sia.tech/coreutils v0.2.6-0.20240814205841-6bd57953a01b
-	go.sia.tech/hostd v1.1.3-0.20240817012955-cfceecd16859
+	go.sia.tech/hostd v1.1.3-0.20240819175908-6eb158b07bc5
 	go.sia.tech/jape v0.12.0
 	go.sia.tech/renterd v1.0.8-0.20240816153131-8a7fcde128a6
 	go.sia.tech/walletd v0.8.1-0.20240816204013-cd52e7b8aaa9

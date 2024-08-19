@@ -2,17 +2,22 @@ package nodes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/minio/blake2b-simd"
+	"go.sia.tech/core/gateway"
 	"go.sia.tech/core/types"
+	"go.sia.tech/coreutils"
 	"go.sia.tech/coreutils/chain"
 	"go.sia.tech/coreutils/syncer"
+	"go.sia.tech/coreutils/testutil"
 	"go.sia.tech/coreutils/wallet"
 	"go.sia.tech/jape"
 	"go.sia.tech/renterd/alerts"
@@ -28,17 +33,29 @@ import (
 	"lukechampine.com/frand"
 )
 
-// Renterd starts a new renterd node. It listens on random ports and registers
-// itself with the provided Manager. This function blocks until the context is
-// canceled. All resources will be cleaned up before the function returns.
-func Renterd(ctx context.Context, baseDir string, pk types.PrivateKey, cm *chain.Manager, s *syncer.Syncer, nm *Manager, log *zap.Logger) error {
+// StartRenterd starts a new renterd node and adds it to the manager.
+// This function blocks until the context is canceled. All resources will be
+// cleaned up before the function returns.
+func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error {
+	pk := types.GeneratePrivateKey()
 	node := Node{
 		ID:            NodeID(frand.Bytes(8)),
 		Type:          NodeTypeRenterd,
 		WalletAddress: types.StandardUnlockHash(pk.PublicKey()),
 	}
-	log = log.Named(node.ID.String())
-	am := alerts.NewManager()
+	log := m.log.Named("renterd." + node.ID.String())
+
+	dir, err := createNodeDir(m.dir, node.ID)
+	if err != nil {
+		return fmt.Errorf("failed to create node directory: %w", err)
+	}
+	defer os.RemoveAll(dir)
+
+	syncerListener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return fmt.Errorf("failed to listen on syncer address: %w", err)
+	}
+	defer syncerListener.Close()
 
 	apiListener, err := net.Listen("tcp", ":0")
 	if err != nil {
@@ -46,9 +63,48 @@ func Renterd(ctx context.Context, baseDir string, pk types.PrivateKey, cm *chain
 	}
 	defer apiListener.Close()
 
-	dir, err := createNodeDir(baseDir, node.ID)
+	// start a chain manager
+	network := m.chain.TipState().Network
+	genesisIndex, ok := m.chain.BestIndex(0)
+	if !ok {
+		return errors.New("failed to get genesis index")
+	}
+	genesis, ok := m.chain.Block(genesisIndex.ID)
+	if !ok {
+		return errors.New("failed to get genesis block")
+	}
+	bdb, err := coreutils.OpenBoltChainDB(filepath.Join(dir, "consensus.db"))
 	if err != nil {
-		return fmt.Errorf("failed to create node directory: %w", err)
+		return fmt.Errorf("failed to open bolt db: %w", err)
+	}
+	defer bdb.Close()
+	dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis)
+	if err != nil {
+		return fmt.Errorf("failed to create dbstore: %w", err)
+	}
+	cm := chain.NewManager(dbstore, tipState)
+
+	// start a syncer
+	_, port, err := net.SplitHostPort(syncerListener.Addr().String())
+	if err != nil {
+		return fmt.Errorf("failed to split syncer address: %w", err)
+	}
+	s := syncer.New(syncerListener, cm, testutil.NewMemPeerStore(), gateway.Header{
+		GenesisID:  genesisIndex.ID,
+		UniqueID:   gateway.GenerateUniqueID(),
+		NetAddress: "127.0.0.1:" + port,
+	})
+	defer s.Close()
+	go s.Run(ctx)
+	// connect to the primary cluster syncer
+	err = func(ctx context.Context) error {
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		_, err := m.syncer.Connect(ctx, s.Addr())
+		return err
+	}(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to connect to cluster syncer: %w", err)
 	}
 
 	db, err := sqlite.Open(filepath.Join(dir, "db.sqlite"))
@@ -73,6 +129,7 @@ func Renterd(ctx context.Context, baseDir string, pk types.PrivateKey, cm *chain
 		return fmt.Errorf("failed to create SQLite metrics database: %w", err)
 	}
 
+	am := alerts.NewManager()
 	store, err := stores.NewSQLStore(stores.Config{
 		Alerts:                        alerts.WithOrigin(am, "bus"),
 		DB:                            dbMain,
@@ -125,7 +182,7 @@ func Renterd(ctx context.Context, baseDir string, pk types.PrivateKey, cm *chain
 		})),
 		ReadTimeout: 15 * time.Second,
 	}
-	defer s.Close()
+	defer server.Close()
 	go server.Serve(apiListener)
 
 	wm, err := wallet.NewSingleAddressWallet(pk, cm, store)
@@ -151,6 +208,7 @@ func Renterd(ctx context.Context, baseDir string, pk types.PrivateKey, cm *chain
 	apiAddr := apiListener.Addr().String()
 	busClient := bus.NewClient(fmt.Sprintf("http://%s/api/bus", apiAddr), "sia is cool")
 	workerClient := worker.NewClient(fmt.Sprintf("http://%s/api/worker", apiAddr), "sia is cool")
+	autopilotClient := autopilot.NewClient(fmt.Sprintf("http://%s/api/autopilot", apiAddr), "sia is cool")
 
 	workerKey := blake2b.Sum256(append([]byte("worker"), pk...))
 	w, err := worker.New(config.Worker{
@@ -196,9 +254,45 @@ func Renterd(ctx context.Context, baseDir string, pk types.PrivateKey, cm *chain
 	log.Info("node started", zap.Stringer("http", apiListener.Addr()))
 	node.APIAddress = "http://" + apiListener.Addr().String()
 	node.Password = "sia is cool"
-	nm.Put(node)
+
+	err = autopilotClient.UpdateConfig(api.AutopilotConfig{
+		Contracts: api.ContractsConfig{
+			Set:         "autopilot",
+			Amount:      1000,
+			Allowance:   types.Siacoins(1000000),
+			Period:      4320,
+			RenewWindow: 144 * 7,
+			Download:    1 << 30,
+			Upload:      1 << 30,
+			Storage:     1 << 30,
+			Prune:       false,
+		},
+		Hosts: api.HostsConfig{
+			AllowRedundantIPs:     true,
+			MaxDowntimeHours:      1440,
+			MinProtocolVersion:    "1.6.0",
+			MinRecentScanFailures: 100,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update autopilot config: %w", err)
+	}
+
+	if _, err := autopilotClient.Trigger(true); err != nil {
+		return fmt.Errorf("failed to trigger autopilot: %w", err)
+	}
+
+	// mine blocks to fund the wallet
+	walletAddress := types.StandardUnlockHash(pk.PublicKey())
+	if err := m.MineBlocks(ctx, 200, walletAddress); err != nil {
+		return fmt.Errorf("failed to mine blocks: %w", err)
+	}
+	m.Put(node)
+	if ready != nil {
+		ready <- struct{}{}
+	}
 	<-ctx.Done()
-	nm.Delete(node.ID)
+	m.Delete(node.ID)
 	log.Info("shutting down")
 	return nil
 }

@@ -1,6 +1,7 @@
 package nodes
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -8,7 +9,11 @@ import (
 	"path/filepath"
 	"sync"
 
+	"go.sia.tech/core/gateway"
 	"go.sia.tech/core/types"
+	"go.sia.tech/coreutils/chain"
+	"go.sia.tech/coreutils/syncer"
+	"go.uber.org/zap"
 )
 
 // Types for the supported nodes.
@@ -18,11 +23,35 @@ const (
 	NodeTypeWalletd = NodeType("walletd")
 )
 
-// A NodeType represents the type of a node.
-type NodeType string
+type (
+	// A NodeType represents the type of a node.
+	NodeType string
 
-// A NodeID is a unique identifier for a node.
-type NodeID [8]byte
+	// A NodeID is a unique identifier for a node.
+	NodeID [8]byte
+
+	// A Node represents a running node in the cluster.
+	Node struct {
+		ID   NodeID   `json:"id"`
+		Type NodeType `json:"type"`
+
+		APIAddress string `json:"apiAddress"`
+		Password   string `json:"password"`
+
+		WalletAddress types.Address `json:"walletAddress"`
+	}
+
+	// A Manager manages a set of nodes in the cluster.
+	Manager struct {
+		dir    string
+		chain  *chain.Manager
+		syncer *syncer.Syncer
+		log    *zap.Logger
+
+		mu    sync.Mutex
+		nodes map[NodeID]Node
+	}
+)
 
 // String returns the hexadecimal representation of the NodeID.
 func (id NodeID) String() string {
@@ -41,23 +70,6 @@ func (id *NodeID) UnmarshalText(text []byte) error {
 	}
 	_, err := hex.Decode(id[:], text)
 	return err
-}
-
-// A Node represents a running node in the cluster.
-type Node struct {
-	ID   NodeID   `json:"id"`
-	Type NodeType `json:"type"`
-
-	APIAddress string `json:"apiAddress"`
-	Password   string `json:"password"`
-
-	WalletAddress types.Address `json:"walletAddress"`
-}
-
-// A Manager manages a set of nodes in the cluster.
-type Manager struct {
-	mu    sync.Mutex
-	nodes map[NodeID]Node
 }
 
 // Put adds a node to the manager.
@@ -94,9 +106,46 @@ func createNodeDir(baseDir string, id NodeID) (dir string, err error) {
 	return
 }
 
+func (m *Manager) MineBlocks(ctx context.Context, n int, rewardAddress types.Address) error {
+	log := m.log.Named("mine")
+
+	for n > 0 {
+		b, err := mineBlock(ctx, m.chain, rewardAddress)
+		if errors.Is(err, context.Canceled) {
+			return err
+		} else if err != nil {
+			log.Warn("failed to mine block", zap.Error(err)) // failure to mine a block is not a critical error
+			continue
+		} else if err := m.chain.AddBlocks([]types.Block{b}); err != nil {
+			log.Warn("failed to add block", zap.Error(err)) // failure to add a block is not *necessarily* a critical error
+			continue
+		}
+
+		if b.V2 == nil {
+			m.syncer.BroadcastHeader(gateway.BlockHeader{
+				ParentID:   b.ParentID,
+				Nonce:      b.Nonce,
+				Timestamp:  b.Timestamp,
+				MerkleRoot: b.MerkleRoot(),
+			})
+		} else {
+			m.syncer.BroadcastV2BlockOutline(gateway.OutlineBlock(b, m.chain.PoolTransactions(), m.chain.V2PoolTransactions()))
+		}
+
+		log.Debug("mined block", zap.Stringer("blockID", b.ID()))
+		n--
+	}
+	return nil
+}
+
 // NewManager creates a new node manager.
-func NewManager() *Manager {
+func NewManager(dir string, cm *chain.Manager, s *syncer.Syncer, log *zap.Logger) *Manager {
 	return &Manager{
+		dir:    dir,
+		chain:  cm,
+		syncer: s,
+		log:    log,
+
 		nodes: make(map[NodeID]Node),
 	}
 }

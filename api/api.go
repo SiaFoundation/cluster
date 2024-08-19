@@ -1,8 +1,6 @@
 package api
 
 import (
-	"encoding/json"
-
 	"go.sia.tech/cluster/nodes"
 	"go.sia.tech/core/types"
 )
@@ -18,5 +16,5 @@ type ProxyResponse struct {
 	NodeID     nodes.NodeID    `json:"nodeID"`
 	StatusCode int             `json:"statusCode"`
 	Error      string          `json:"error,omitempty"`
-	Data       json.RawMessage `json:"data"`
+	Data       nodes.ProxyData `json:"data"`
 }

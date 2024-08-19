@@ -115,8 +115,8 @@ func main() {
 
 	switch network {
 	case "v1":
-		n.HardforkV2.AllowHeight = 1000 // high, but attainable
-		n.HardforkV2.RequireHeight = 1200
+		n.HardforkV2.AllowHeight = 10000 // ideally unattainable
+		n.HardforkV2.RequireHeight = 12000
 	case "v2":
 		n.HardforkV2.AllowHeight = 2
 		n.HardforkV2.RequireHeight = 3
@@ -153,14 +153,14 @@ func main() {
 		GenesisID:  genesis.ID(),
 		UniqueID:   gateway.GenerateUniqueID(),
 		NetAddress: "127.0.0.1:" + port,
-	})
+	}, syncer.WithMaxInboundPeers(10000)) // essentially no limit on inbound peers
 	if err != nil {
 		log.Panic("failed to create syncer", zap.Error(err))
 	}
 	defer s.Close()
 	go s.Run(ctx)
 
-	nm := nodes.NewManager()
+	nm := nodes.NewManager(dir, cm, s, log.Named("cluster"))
 
 	server := &http.Server{
 		Handler:     api.Handler(cm, s, nm, log.Named("api")),
@@ -171,63 +171,39 @@ func main() {
 
 	var wg sync.WaitGroup
 	for i := 0; i < hostdCount; i++ {
-		pk := types.GeneratePrivateKey()
-		log := log.Named("hostd")
-
 		wg.Add(1)
+		ready := make(chan struct{}, 1)
 		go func() {
 			defer wg.Done()
-			if err := nodes.Hostd(ctx, dir, pk, cm, s, nm, log); err != nil {
+			if err := nm.StartHostd(ctx, ready); err != nil {
 				log.Panic("hostd failed to start", zap.Error(err))
 			}
 		}()
-
-		addr := types.StandardUnlockHash(pk.PublicKey())
-		for n := 20; n > 0; {
-			b, ok := coreutils.MineBlock(cm, addr, 5*time.Second)
-			if !ok {
-				continue
-			} else if err := cm.AddBlocks([]types.Block{b}); err != nil {
-				log.Panic("failed to add funding block", zap.Error(err))
-			}
-			n--
-			log.Debug("funding hostd", zap.Stringer("address", addr), zap.Int("utxos", 20-n))
-		}
+		<-ready
 	}
 
 	for i := 0; i < renterdCount; i++ {
-		pk := types.GeneratePrivateKey()
-		log := log.Named("renterd")
 		wg.Add(1)
+		ready := make(chan struct{}, 1)
 		go func() {
 			defer wg.Done()
-			if err := nodes.Renterd(ctx, dir, pk, cm, s, nm, log); err != nil {
+			if err := nm.StartRenterd(ctx, ready); err != nil {
 				log.Panic("renterd failed to start", zap.Error(err))
 			}
 		}()
-
-		addr := types.StandardUnlockHash(pk.PublicKey())
-		for n := 20; n > 0; {
-			b, ok := coreutils.MineBlock(cm, addr, 5*time.Second)
-			if !ok {
-				continue
-			} else if err := cm.AddBlocks([]types.Block{b}); err != nil {
-				log.Panic("failed to add funding block", zap.Error(err))
-			}
-			n--
-			log.Debug("funding renterd", zap.Stringer("address", addr), zap.Int("utxos", 20-n))
-		}
+		<-ready
 	}
 
 	for i := 0; i < walletdCount; i++ {
-		log := log.Named("walletd")
 		wg.Add(1)
+		ready := make(chan struct{}, 1)
 		go func() {
 			defer wg.Done()
-			if err := nodes.Walletd(ctx, dir, cm, s, nm, log); err != nil {
+			if err := nm.StartWalletd(ctx, ready); err != nil {
 				log.Panic("walletd failed to start", zap.Error(err))
 			}
 		}()
+		<-ready
 	}
 
 	// mine until all payouts have matured

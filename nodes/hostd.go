@@ -2,16 +2,21 @@ package nodes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"go.sia.tech/core/gateway"
 	"go.sia.tech/core/types"
+	"go.sia.tech/coreutils"
 	"go.sia.tech/coreutils/chain"
 	"go.sia.tech/coreutils/syncer"
+	"go.sia.tech/coreutils/testutil"
 	"go.sia.tech/coreutils/wallet"
 	"go.sia.tech/hostd/alerts"
 	"go.sia.tech/hostd/api"
@@ -34,32 +39,34 @@ import (
 )
 
 // Hostd starts a new hostd node. It listens on random ports and registers
-// itself with the provided Manager. This function blocks until the context is
+// itself with the Manager. This function blocks until the context is
 // canceled. All resources will be cleaned up before the function returns.
-func Hostd(ctx context.Context, baseDir string, pk types.PrivateKey, cm *chain.Manager, s *syncer.Syncer, nm *Manager, log *zap.Logger) error {
+func (m *Manager) StartHostd(ctx context.Context, ready chan<- struct{}) error {
+	pk := types.GeneratePrivateKey()
 	node := Node{
 		ID:            NodeID(frand.Bytes(8)),
 		Type:          NodeTypeHostd,
 		WalletAddress: types.StandardUnlockHash(pk.PublicKey()),
 	}
-	log = log.Named(node.ID.String())
+	log := m.log.Named("hostd." + node.ID.String())
 
-	dir, err := createNodeDir(baseDir, node.ID)
+	dir, err := createNodeDir(m.dir, node.ID)
 	if err != nil {
 		return fmt.Errorf("failed to create node directory: %w", err)
 	}
-
-	store, err := sqlite.OpenDatabase(filepath.Join(dir, "hostd.sqlite3"), log.Named("sqlite3"))
-	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
-	}
-	defer store.Close()
+	defer os.RemoveAll(dir)
 
 	httpListener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		return fmt.Errorf("failed to listen on http address: %w", err)
 	}
 	defer httpListener.Close()
+
+	syncerListener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return fmt.Errorf("failed to listen on syncer address: %w", err)
+	}
+	defer syncerListener.Close()
 
 	rhp2Listener, err := net.Listen("tcp", ":0")
 	if err != nil {
@@ -72,6 +79,56 @@ func Hostd(ctx context.Context, baseDir string, pk types.PrivateKey, cm *chain.M
 		return fmt.Errorf("failed to listen on rhp3 addr: %w", err)
 	}
 	defer rhp3Listener.Close()
+
+	// start a chain manager
+	network := m.chain.TipState().Network
+	genesisIndex, ok := m.chain.BestIndex(0)
+	if !ok {
+		return errors.New("failed to get genesis index")
+	}
+	genesis, ok := m.chain.Block(genesisIndex.ID)
+	if !ok {
+		return errors.New("failed to get genesis block")
+	}
+	bdb, err := coreutils.OpenBoltChainDB(filepath.Join(dir, "consensus.db"))
+	if err != nil {
+		return fmt.Errorf("failed to open bolt db: %w", err)
+	}
+	defer bdb.Close()
+	dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis)
+	if err != nil {
+		return fmt.Errorf("failed to create dbstore: %w", err)
+	}
+	cm := chain.NewManager(dbstore, tipState)
+
+	// start a syncer
+	_, port, err := net.SplitHostPort(syncerListener.Addr().String())
+	if err != nil {
+		return fmt.Errorf("failed to split syncer address: %w", err)
+	}
+	s := syncer.New(syncerListener, cm, testutil.NewMemPeerStore(), gateway.Header{
+		GenesisID:  genesisIndex.ID,
+		UniqueID:   gateway.GenerateUniqueID(),
+		NetAddress: "127.0.0.1:" + port,
+	})
+	defer s.Close()
+	go s.Run(ctx)
+	// connect to the primary cluster syncer
+	err = func(ctx context.Context) error {
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		_, err := m.syncer.Connect(ctx, s.Addr())
+		return err
+	}(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to connect to cluster syncer: %w", err)
+	}
+
+	store, err := sqlite.OpenDatabase(filepath.Join(dir, "hostd.sqlite3"), log.Named("sqlite3"))
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer store.Close()
 
 	wm, err := wallet.NewSingleAddressWallet(pk, cm, store, wallet.WithLogger(log.Named("wallet")), wallet.WithReservationDuration(3*time.Hour))
 	if err != nil {
@@ -111,12 +168,9 @@ func Hostd(ctx context.Context, baseDir string, pk types.PrivateKey, cm *chain.M
 	ch := make(chan error, 1)
 	if _, err := vm.AddVolume(ctx, filepath.Join(dir, "data.dat"), 64, ch); err != nil {
 		return fmt.Errorf("failed to add volume: %w", err)
+	} else if err := <-ch; err != nil { // wait for the volume to be initialized
+		return fmt.Errorf("failed to add volume: %w", err)
 	}
-	go func() {
-		if err := <-ch; err != nil {
-			log.Error("failed to add volume", zap.Error(err))
-		}
-	}()
 
 	contractManager, err := contracts.NewManager(store, vm, cm, s, wm, contracts.WithLog(log.Named("contracts")), contracts.WithAlerter(am))
 	if err != nil {
@@ -178,9 +232,19 @@ func Hostd(ctx context.Context, baseDir string, pk types.PrivateKey, cm *chain.M
 	log.Info("node started", zap.String("network", cm.TipState().Network.Name), zap.String("hostKey", pk.PublicKey().String()), zap.String("http", httpListener.Addr().String()), zap.String("p2p", string(s.Addr())), zap.String("rhp2", rhp2.LocalAddr()), zap.String("rhp3", rhp3.LocalAddr()))
 	node.APIAddress = "http://" + httpListener.Addr().String()
 	node.Password = "sia is cool"
-	nm.Put(node)
+
+	// mine blocks to fund the wallet
+	walletAddress := types.StandardUnlockHash(pk.PublicKey())
+	if err := m.MineBlocks(ctx, 200, walletAddress); err != nil {
+		return fmt.Errorf("failed to mine blocks: %w", err)
+	}
+
+	m.Put(node)
+	if ready != nil {
+		ready <- struct{}{}
+	}
 	<-ctx.Done()
-	nm.Delete(node.ID)
+	m.Delete(node.ID)
 	log.Info("shutting down")
 	return nil
 }
