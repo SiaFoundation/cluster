@@ -44,9 +44,9 @@ func main() {
 	flag.StringVar(&network, "network", "v1", "network to use (v1 or v2)")
 	flag.StringVar(&siafundAddr, "siafund", "", "address to send siafunds to")
 
-	flag.IntVar(&renterdCount, "renterd", 1, "number of renter daemons to run")
-	flag.IntVar(&hostdCount, "hostd", 1, "number of host daemons to run")
-	flag.IntVar(&walletdCount, "walletd", 1, "number of wallet daemons to run")
+	flag.IntVar(&renterdCount, "renterd", 0, "number of renter daemons to run")
+	flag.IntVar(&hostdCount, "hostd", 0, "number of host daemons to run")
+	flag.IntVar(&walletdCount, "walletd", 0, "number of wallet daemons to run")
 	flag.Parse()
 
 	cfg := zap.NewProductionEncoderConfig()
@@ -78,6 +78,10 @@ func main() {
 	defer log.Sync()
 
 	zap.RedirectStdLog(log)
+
+	if hostdCount == 0 && renterdCount == 0 && walletdCount == 0 {
+		log.Panic("no nodes to run")
+	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
