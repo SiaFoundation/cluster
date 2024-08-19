@@ -38,6 +38,8 @@ type (
 		APIAddress string `json:"apiAddress"`
 		Password   string `json:"password"`
 
+		SyncerAddress string `json:"syncerAddress"`
+
 		WalletAddress types.Address `json:"walletAddress"`
 	}
 

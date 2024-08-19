@@ -157,7 +157,7 @@ func main() {
 		GenesisID:  genesis.ID(),
 		UniqueID:   gateway.GenerateUniqueID(),
 		NetAddress: "127.0.0.1:" + port,
-	}, syncer.WithMaxInboundPeers(10000)) // essentially no limit on inbound peers
+	}, syncer.WithLogger(log.Named("syncer")), syncer.WithMaxInboundPeers(10000), syncer.WithBanDuration(time.Second), syncer.WithPeerDiscoveryInterval(5*time.Second), syncer.WithSyncInterval(5*time.Second)) // essentially no limit on inbound peers
 	if err != nil {
 		log.Panic("failed to create syncer", zap.Error(err))
 	}

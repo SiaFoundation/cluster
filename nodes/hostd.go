@@ -110,18 +110,21 @@ func (m *Manager) StartHostd(ctx context.Context, ready chan<- struct{}) error {
 		GenesisID:  genesisIndex.ID,
 		UniqueID:   gateway.GenerateUniqueID(),
 		NetAddress: "127.0.0.1:" + port,
-	})
+	}, syncer.WithLogger(log.Named("syncer")), syncer.WithPeerDiscoveryInterval(5*time.Second), syncer.WithSyncInterval(5*time.Second))
 	defer s.Close()
 	go s.Run(ctx)
-	// connect to the primary cluster syncer
-	err = func(ctx context.Context) error {
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-		_, err := m.syncer.Connect(ctx, s.Addr())
-		return err
-	}(ctx)
+	node.SyncerAddress = syncerListener.Addr().String()
+	// connect to the cluster syncer
+	_, err = m.syncer.Connect(ctx, node.SyncerAddress)
 	if err != nil {
 		return fmt.Errorf("failed to connect to cluster syncer: %w", err)
+	}
+	// connect to other nodes in the cluster
+	for _, n := range m.Nodes() {
+		_, err = s.Connect(ctx, n.SyncerAddress)
+		if err != nil {
+			return fmt.Errorf("failed to connect to peer syncer: %w", err)
+		}
 	}
 
 	store, err := sqlite.OpenDatabase(filepath.Join(dir, "hostd.sqlite3"), log.Named("sqlite3"))
