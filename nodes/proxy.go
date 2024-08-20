@@ -36,6 +36,7 @@ func (pd ProxyData) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + str + `"`), nil
 }
 
+// ProxyRequest proxies an HTTP request to all nodes matching the filter.
 func (m *Manager) ProxyRequest(ctx context.Context, filter, httpMethod, path string, body io.Reader) ([]ProxyResponse, error) {
 	log := m.log.Named("proxy").With(zap.String("filter", filter), zap.String("method", httpMethod), zap.String("path", path))
 

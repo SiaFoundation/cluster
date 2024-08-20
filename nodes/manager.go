@@ -100,14 +100,7 @@ func (m *Manager) Nodes() []Node {
 	return nodes
 }
 
-func createNodeDir(baseDir string, id NodeID) (dir string, err error) {
-	dir = filepath.Join(baseDir, id.String())
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return "", fmt.Errorf("failed to create node directory: %w", err)
-	}
-	return
-}
-
+// MineBlocks mines n blocks to the provided reward address.
 func (m *Manager) MineBlocks(ctx context.Context, n int, rewardAddress types.Address) error {
 	log := m.log.Named("mine")
 
@@ -138,6 +131,14 @@ func (m *Manager) MineBlocks(ctx context.Context, n int, rewardAddress types.Add
 		n--
 	}
 	return nil
+}
+
+func createNodeDir(baseDir string, id NodeID) (dir string, err error) {
+	dir = filepath.Join(baseDir, id.String())
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", fmt.Errorf("failed to create node directory: %w", err)
+	}
+	return
 }
 
 // NewManager creates a new node manager.

@@ -38,7 +38,7 @@ import (
 	"lukechampine.com/frand"
 )
 
-// Hostd starts a new hostd node. It listens on random ports and registers
+// StartHostd starts a new hostd node. It listens on random ports and registers
 // itself with the Manager. This function blocks until the context is
 // canceled. All resources will be cleaned up before the function returns.
 func (m *Manager) StartHostd(ctx context.Context, ready chan<- struct{}) error {
