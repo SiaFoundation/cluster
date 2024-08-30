@@ -201,7 +201,9 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 	}
 	defer wm.Close()
 
-	b, err := bus.New(ctx, am, wh, cm, s, wm, store, 24*time.Hour, log.Named("bus"))
+	masterKey := blake2b.Sum256(append([]byte("worker"), pk...))
+
+	b, err := bus.New(ctx, masterKey, am, wh, cm, s, wm, store, 24*time.Hour, log.Named("bus"))
 	if err != nil {
 		return fmt.Errorf("failed to create bus: %w", err)
 	}
@@ -220,8 +222,9 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 	workerClient := worker.NewClient(fmt.Sprintf("http://%s/api/worker", apiAddr), "sia is cool")
 	autopilotClient := autopilot.NewClient(fmt.Sprintf("http://%s/api/autopilot", apiAddr), "sia is cool")
 
-	workerKey := blake2b.Sum256(append([]byte("worker"), pk...))
 	w, err := worker.New(config.Worker{
+		AccountsRefillInterval:   time.Second,
+		AllowPrivateIPs:          true,
 		ContractLockTimeout:      5 * time.Second,
 		ID:                       "worker",
 		BusFlushInterval:         100 * time.Millisecond,
@@ -230,7 +233,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 		DownloadMaxMemory:        1 << 28, // 256 MiB
 		UploadMaxMemory:          1 << 28, // 256 MiB
 		UploadMaxOverdrive:       5,
-	}, workerKey, busClient, log.Named("worker"))
+	}, masterKey, busClient, log.Named("worker"))
 	if err != nil {
 		return fmt.Errorf("failed to create worker: %w", err)
 	}
@@ -248,12 +251,11 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 	}
 
 	ap, err := autopilot.New(config.Autopilot{
-		AccountsRefillInterval:         time.Second,
 		Heartbeat:                      time.Second,
 		ID:                             api.DefaultAutopilotID,
 		MigrationHealthCutoff:          0.99,
 		MigratorParallelSlabsPerWorker: 1,
-		RevisionSubmissionBuffer:       10,
+		RevisionSubmissionBuffer:       0,
 		ScannerInterval:                time.Second,
 		ScannerBatchSize:               10,
 		ScannerNumThreads:              1,
@@ -282,10 +284,10 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 			Prune:       false,
 		},
 		Hosts: api.HostsConfig{
-			AllowRedundantIPs:     true,
-			MaxDowntimeHours:      1440,
-			MinProtocolVersion:    "1.6.0",
-			MinRecentScanFailures: 100,
+			AllowRedundantIPs:          true,
+			MaxDowntimeHours:           1440,
+			MinProtocolVersion:         "1.6.0",
+			MaxConsecutiveScanFailures: 100,
 		},
 	})
 	if err != nil {
@@ -314,10 +316,10 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 				Prune:       false,
 			},
 			Hosts: api.HostsConfig{
-				AllowRedundantIPs:     true,
-				MaxDowntimeHours:      1440,
-				MinProtocolVersion:    "1.6.0",
-				MinRecentScanFailures: 100,
+				AllowRedundantIPs:          true,
+				MaxDowntimeHours:           1440,
+				MinProtocolVersion:         "1.6.0",
+				MaxConsecutiveScanFailures: 100,
 			},
 		},
 	})

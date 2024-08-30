@@ -4,12 +4,12 @@ go 1.23.0
 
 require (
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
-	go.sia.tech/core v0.4.4-0.20240814175157-ebc804c7119c
-	go.sia.tech/coreutils v0.2.6-0.20240814205841-6bd57953a01b
-	go.sia.tech/hostd v1.1.3-0.20240819214738-33477e5e7918
+	go.sia.tech/core v0.4.4
+	go.sia.tech/coreutils v0.3.0
+	go.sia.tech/hostd v1.1.3-0.20240828185110-4988d631e612
 	go.sia.tech/jape v0.12.0
-	go.sia.tech/renterd v1.0.8-0.20240816153131-8a7fcde128a6
-	go.sia.tech/walletd v0.8.1-0.20240816204013-cd52e7b8aaa9
+	go.sia.tech/renterd v1.0.8-0.20240830132325-ce2b3cab496c
+	go.sia.tech/walletd v0.8.1-0.20240830193535-90d18cf2393c
 	go.uber.org/zap v1.27.0
 	lukechampine.com/frand v1.4.2
 )
