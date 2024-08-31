@@ -350,7 +350,10 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 		return fmt.Errorf("failed to update setting: %w", err)
 	}
 	err = busClient.UpdateSetting(ctx, api.SettingPricePinning, api.PricePinSettings{
-		Enabled: false,
+		Enabled:          false,
+		Currency:         "usd",
+		ForexEndpointURL: "https://api.siascan.com/exchange-rate/siacoin",
+		Threshold:        0.05,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update setting: %w", err)
