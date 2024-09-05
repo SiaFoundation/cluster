@@ -297,8 +297,6 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 	// Finish worker setup.
 	if err := w.Setup(ctx, node.APIAddress+"/api/worker", "sia is cool"); err != nil {
 		return fmt.Errorf("failed to setup worker: %w", err)
-	} else if err := busClient.SetContractSet(ctx, "autopilot", nil); err != nil {
-		return fmt.Errorf("failed to set contract set: %w", err)
 	}
 
 	err = busClient.UpdateAutopilot(ctx, api.Autopilot{
