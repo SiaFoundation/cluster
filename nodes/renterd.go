@@ -202,8 +202,8 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 	defer wm.Close()
 
 	masterKey := blake2b.Sum256(append([]byte("worker"), pk...))
-
-	b, err := bus.New(ctx, masterKey, am, wh, cm, s, wm, store, 24*time.Hour, log.Named("bus"))
+	explorerURL := "https://api.siascan.com/exchange-rate/siacoin"
+	b, err := bus.New(ctx, masterKey, am, wh, cm, s, wm, store, 24*time.Hour, explorerURL, log.Named("bus"))
 	if err != nil {
 		return fmt.Errorf("failed to create bus: %w", err)
 	}
@@ -348,10 +348,8 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 		return fmt.Errorf("failed to update setting: %w", err)
 	}
 	err = busClient.UpdateSetting(ctx, api.SettingPricePinning, api.PricePinSettings{
-		Enabled:          false,
-		Currency:         "usd",
-		ForexEndpointURL: "https://api.siascan.com/exchange-rate/siacoin",
-		Threshold:        0.05,
+		Currency:  "usd",
+		Threshold: 0.05,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update setting: %w", err)
