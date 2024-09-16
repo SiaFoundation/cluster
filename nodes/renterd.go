@@ -30,18 +30,18 @@ import (
 	"go.sia.tech/renterd/webhooks"
 	"go.sia.tech/renterd/worker"
 	"go.uber.org/zap"
-	"lukechampine.com/frand"
 )
 
 // StartRenterd starts a new renterd node and adds it to the manager.
 // This function blocks until the context is canceled. All resources will be
 // cleaned up before the function returns.
 func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error {
-	pk := types.GeneratePrivateKey()
+	sk := types.GeneratePrivateKey()
+	pk := sk.PublicKey()
 	node := Node{
-		ID:            NodeID(frand.Bytes(8)),
+		ID:            NodeID(pk[:]),
 		Type:          NodeTypeRenterd,
-		WalletAddress: types.StandardUnlockHash(pk.PublicKey()),
+		WalletAddress: types.StandardUnlockHash(pk),
 	}
 	log := m.log.Named("renterd." + node.ID.String())
 
@@ -93,7 +93,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 		GenesisID:  genesisIndex.ID,
 		UniqueID:   gateway.GenerateUniqueID(),
 		NetAddress: "127.0.0.1:" + port,
-	}, syncer.WithLogger(log.Named("syncer")), syncer.WithPeerDiscoveryInterval(5*time.Second), syncer.WithSyncInterval(5*time.Second))
+	}, syncer.WithLogger(log.Named("syncer")), syncer.WithPeerDiscoveryInterval(5*time.Second), syncer.WithSyncInterval(5*time.Second), syncer.WithMaxOutboundPeers(10000), syncer.WithMaxInboundPeers(10000))
 	defer s.Close()
 	go s.Run(ctx)
 	node.SyncerAddress = syncerListener.Addr().String()
@@ -106,7 +106,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 	for _, n := range m.Nodes() {
 		_, err = s.Connect(ctx, n.SyncerAddress)
 		if err != nil {
-			return fmt.Errorf("failed to connect to peer syncer: %w", err)
+			log.Debug("failed to connect to peer syncer", zap.Stringer("peer", n.ID), zap.Error(err))
 		}
 	}
 
@@ -149,7 +149,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 			10 * time.Second,
 			10 * time.Second,
 		},
-		WalletAddress:     types.StandardUnlockHash(pk.PublicKey()),
+		WalletAddress:     types.StandardUnlockHash(pk),
 		LongQueryDuration: time.Second,
 		LongTxDuration:    time.Second,
 	})
@@ -195,13 +195,13 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 	defer server.Close()
 	go server.Serve(apiListener)
 
-	wm, err := wallet.NewSingleAddressWallet(pk, cm, store)
+	wm, err := wallet.NewSingleAddressWallet(sk, cm, store)
 	if err != nil {
 		return fmt.Errorf("failed to create wallet: %w", err)
 	}
 	defer wm.Close()
 
-	masterKey := blake2b.Sum256(append([]byte("worker"), pk...))
+	masterKey := blake2b.Sum256(append([]byte("worker"), sk...))
 
 	b, err := bus.New(ctx, masterKey, am, wh, cm, s, wm, store, 24*time.Hour, log.Named("bus"))
 	if err != nil {
@@ -275,7 +275,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 		Contracts: api.ContractsConfig{
 			Set:         "autopilot",
 			Amount:      1000,
-			Allowance:   types.Siacoins(1000000),
+			Allowance:   types.Siacoins(10000),
 			Period:      4320,
 			RenewWindow: 144 * 7,
 			Download:    1 << 30,
@@ -377,18 +377,35 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 	}
 
 	// mine blocks to fund the wallet
-	walletAddress := types.StandardUnlockHash(pk.PublicKey())
+	walletAddress := types.StandardUnlockHash(pk)
 	if err := m.MineBlocks(ctx, 200, walletAddress); err != nil {
 		return fmt.Errorf("failed to mine blocks: %w", err)
-	} else if _, err := autopilotClient.Trigger(true); err != nil {
+	}
+
+waitForSync:
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+			state, err := busClient.ConsensusState(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to get consensus state: %w", err)
+			} else if state.BlockHeight == m.chain.Tip().Height {
+				break waitForSync
+			}
+		}
+	}
+
+	if _, err := autopilotClient.Trigger(true); err != nil {
 		return fmt.Errorf("failed to trigger autopilot: %w", err)
 	}
-	m.Put(node)
+	m.put(node)
 	if ready != nil {
 		ready <- struct{}{}
 	}
 	<-ctx.Done()
-	m.Delete(node.ID)
+	m.delete(node.ID)
 	log.Info("shutting down")
 	return nil
 }

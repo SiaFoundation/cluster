@@ -74,16 +74,16 @@ func (id *NodeID) UnmarshalText(text []byte) error {
 	return err
 }
 
-// Put adds a node to the manager.
-func (m *Manager) Put(node Node) {
+// put adds a node to the manager.
+func (m *Manager) put(node Node) {
 	m.mu.Lock()
 	m.nodes[node.ID] = node
 	m.mu.Unlock()
 }
 
-// Delete removes a node from the manager.
+// delete removes a node from the manager.
 // The node is not stopped.
-func (m *Manager) Delete(id NodeID) {
+func (m *Manager) delete(id NodeID) {
 	m.mu.Lock()
 	delete(m.nodes, id)
 	m.mu.Unlock()
@@ -96,6 +96,45 @@ func (m *Manager) Nodes() []Node {
 	nodes := make([]Node, 0, len(m.nodes))
 	for _, v := range m.nodes {
 		nodes = append(nodes, v)
+	}
+	return nodes
+}
+
+// Renterd returns a slice of all running renterd nodes in the manager.
+func (m *Manager) Renterd() []Node {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var nodes []Node
+	for _, n := range m.nodes {
+		if n.Type == NodeTypeRenterd {
+			nodes = append(nodes, n)
+		}
+	}
+	return nodes
+}
+
+// Hostd returns a slice of all running hostd nodes in the manager.
+func (m *Manager) Hostd() []Node {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var nodes []Node
+	for _, n := range m.nodes {
+		if n.Type == NodeTypeHostd {
+			nodes = append(nodes, n)
+		}
+	}
+	return nodes
+}
+
+// Walletd returns a slice of all running walletd nodes in the manager.
+func (m *Manager) Walletd() []Node {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var nodes []Node
+	for _, n := range m.nodes {
+		if n.Type == NodeTypeWalletd {
+			nodes = append(nodes, n)
+		}
 	}
 	return nodes
 }

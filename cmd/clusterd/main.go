@@ -183,7 +183,11 @@ func main() {
 				log.Panic("hostd failed to start", zap.Error(err))
 			}
 		}()
-		<-ready
+		select {
+		case <-ctx.Done():
+			log.Panic("context canceled")
+		case <-ready:
+		}
 	}
 
 	for i := 0; i < renterdCount; i++ {
@@ -195,7 +199,11 @@ func main() {
 				log.Panic("renterd failed to start", zap.Error(err))
 			}
 		}()
-		<-ready
+		select {
+		case <-ctx.Done():
+			log.Panic("context canceled")
+		case <-ready:
+		}
 	}
 
 	for i := 0; i < walletdCount; i++ {
@@ -207,19 +215,16 @@ func main() {
 				log.Panic("walletd failed to start", zap.Error(err))
 			}
 		}()
-		<-ready
+		select {
+		case <-ctx.Done():
+			log.Panic("context canceled")
+		case <-ready:
+		}
 	}
 
 	// mine until all payouts have matured
-	for n := 144; n > 0; {
-		b, ok := coreutils.MineBlock(cm, types.VoidAddress, 5*time.Second)
-		if !ok {
-			continue
-		} else if err := cm.AddBlocks([]types.Block{b}); err != nil {
-			log.Panic("failed to add funding block", zap.Error(err))
-		}
-		n--
-		log.Debug("mined block", zap.Stringer("index", cm.Tip()))
+	if err := nm.MineBlocks(ctx, 144, types.VoidAddress); err != nil {
+		log.Panic("failed to mine blocks", zap.Error(err))
 	}
 
 	<-ctx.Done()

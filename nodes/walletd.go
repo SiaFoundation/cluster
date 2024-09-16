@@ -102,7 +102,7 @@ func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) error
 	for _, n := range m.Nodes() {
 		_, err = s.Connect(ctx, n.SyncerAddress)
 		if err != nil {
-			return fmt.Errorf("failed to connect to peer syncer: %w", err)
+			log.Debug("failed to connect to node", zap.String("node", n.ID.String()), zap.Error(err))
 		}
 	}
 
@@ -134,15 +134,32 @@ func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) error
 	defer server.Close()
 	go server.Serve(httpListener)
 
+	// wait for sync
+waitForSync:
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+			tip, err := wm.Tip()
+			if err != nil {
+				return fmt.Errorf("failed to get tip: %w", err)
+			} else if tip == m.chain.Tip() {
+				break waitForSync
+			}
+		}
+
+	}
+
 	log.Info("node started", zap.Stringer("http", httpListener.Addr()), zap.String("version", build.Version()), zap.String("commit", build.Commit()))
 	node.APIAddress = "http://" + httpListener.Addr().String()
 	node.Password = "sia is cool"
-	m.Put(node)
+	m.put(node)
 	if ready != nil {
 		ready <- struct{}{}
 	}
 	<-ctx.Done()
-	m.Delete(node.ID)
+	m.delete(node.ID)
 	log.Info("shutting down")
 	return nil
 }
