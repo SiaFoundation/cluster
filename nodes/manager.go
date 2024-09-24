@@ -35,9 +35,8 @@ type (
 		ID   NodeID   `json:"id"`
 		Type NodeType `json:"type"`
 
-		PrivateKey types.PrivateKey `json:"privateKey,omitempty"`
-		APIAddress string           `json:"apiAddress"`
-		Password   string           `json:"password"`
+		APIAddress string `json:"apiAddress"`
+		Password   string `json:"password"`
 
 		SyncerAddress string `json:"syncerAddress"`
 

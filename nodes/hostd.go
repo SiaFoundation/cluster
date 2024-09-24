@@ -40,13 +40,11 @@ import (
 // StartHostd starts a new hostd node. It listens on random ports and registers
 // itself with the Manager. This function blocks until the context is
 // canceled. All restources will be cleaned up before the funcion returns.
-func (m *Manager) StartHostd(ctx context.Context, ready chan<- struct{}) error {
-	sk := types.GeneratePrivateKey()
+func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready chan<- struct{}) error {
 	pk := sk.PublicKey()
 	node := Node{
 		ID:            NodeID(pk[:8]),
 		Type:          NodeTypeHostd,
-		PrivateKey:    sk,
 		WalletAddress: types.StandardUnlockHash(pk),
 	}
 	log := m.log.Named("hostd." + node.ID.String())

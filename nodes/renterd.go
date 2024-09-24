@@ -35,13 +35,11 @@ import (
 // StartRenterd starts a new renterd node and adds it to the manager.
 // This function blocks until the context is canceled. All resources will be
 // cleaned up before the function returns.
-func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error {
-	sk := types.GeneratePrivateKey()
+func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready chan<- struct{}) error {
 	pk := sk.PublicKey()
 	node := Node{
 		ID:            NodeID(pk[:]),
 		Type:          NodeTypeRenterd,
-		PrivateKey:    sk,
 		WalletAddress: types.StandardUnlockHash(pk),
 	}
 	log := m.log.Named("renterd." + node.ID.String())
