@@ -41,6 +41,7 @@ func (m *Manager) StartRenterd(ctx context.Context, ready chan<- struct{}) error
 	node := Node{
 		ID:            NodeID(pk[:]),
 		Type:          NodeTypeRenterd,
+		PrivateKey:    sk,
 		WalletAddress: types.StandardUnlockHash(pk),
 	}
 	log := m.log.Named("renterd." + node.ID.String())
