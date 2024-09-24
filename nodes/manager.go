@@ -51,6 +51,8 @@ type (
 		log    *zap.Logger
 
 		mu    sync.Mutex
+		wg    sync.WaitGroup
+		close chan struct{}
 		nodes map[NodeID]Node
 	}
 )
@@ -74,19 +76,61 @@ func (id *NodeID) UnmarshalText(text []byte) error {
 	return err
 }
 
-// put adds a node to the manager.
-func (m *Manager) put(node Node) {
+// incrementWaitGroup increments the manager's waitgroup. If the manager is
+// closed, it returns an error.
+func (m *Manager) incrementWaitGroup() (func(), error) {
 	m.mu.Lock()
-	m.nodes[node.ID] = node
-	m.mu.Unlock()
+	defer m.mu.Unlock()
+
+	select {
+	case <-m.close:
+		return nil, errors.New("manager closed")
+	default:
+		m.wg.Add(1)
+		return m.wg.Done, nil
+	}
 }
 
-// delete removes a node from the manager.
-// The node is not stopped.
-func (m *Manager) delete(id NodeID) {
+// addNodeAndWait is a helper function for managing a node's lifetime. It adds
+// the node to the manager, waits for the context to be canceled or Close to be
+// called, and then removes the node from the manager.
+func (m *Manager) addNodeAndWait(ctx context.Context, node Node, ready chan<- struct{}) {
 	m.mu.Lock()
-	delete(m.nodes, id)
+	// add the node to the manager
+	m.nodes[node.ID] = node
+	defer func() {
+		// remove the node from the manager
+		m.mu.Lock()
+		delete(m.nodes, node.ID)
+		m.mu.Unlock()
+	}()
+
+	if ready != nil {
+		// signal that the node is ready
+		ready <- struct{}{}
+	}
 	m.mu.Unlock()
+
+	// wait for the context to be canceled or Close to be called
+	select {
+	case <-ctx.Done():
+	case <-m.close:
+	}
+}
+
+// Close closes the manager and all running nodes and waits for them to exit.
+func (m *Manager) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	select {
+	case <-m.close:
+		return errors.New("manager already closed")
+	default:
+		close(m.close)
+		m.wg.Wait()
+		return nil
+	}
 }
 
 // Nodes returns a slice of all running nodes in the manager.
@@ -189,5 +233,7 @@ func NewManager(dir string, cm *chain.Manager, s *syncer.Syncer, log *zap.Logger
 		log:    log,
 
 		nodes: make(map[NodeID]Node),
+
+		close: make(chan struct{}),
 	}
 }

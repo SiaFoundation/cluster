@@ -27,7 +27,19 @@ import (
 
 // StartWalletd starts a new walletd node. This function blocks until the context
 // is canceled. All resources will be cleaned up before the function returns.
-func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) error {
+func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) (err error) {
+	defer func() {
+		if r := recover(); r != nil && err == nil {
+			err = fmt.Errorf("panic: %v", r)
+		}
+	}()
+
+	done, err := m.incrementWaitGroup()
+	if err != nil {
+		return err
+	}
+	defer done()
+
 	node := Node{
 		ID:   NodeID(frand.Bytes(8)),
 		Type: NodeTypeWalletd,
@@ -154,12 +166,6 @@ waitForSync:
 	log.Info("node started", zap.Stringer("http", httpListener.Addr()), zap.String("version", build.Version()), zap.String("commit", build.Commit()))
 	node.APIAddress = "http://" + httpListener.Addr().String()
 	node.Password = "sia is cool"
-	m.put(node)
-	if ready != nil {
-		ready <- struct{}{}
-	}
-	<-ctx.Done()
-	m.delete(node.ID)
-	log.Info("shutting down")
+	m.addNodeAndWait(ctx, node, ready)
 	return nil
 }

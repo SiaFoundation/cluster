@@ -40,7 +40,19 @@ import (
 // StartHostd starts a new hostd node. It listens on random ports and registers
 // itself with the Manager. This function blocks until the context is
 // canceled. All restources will be cleaned up before the funcion returns.
-func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready chan<- struct{}) error {
+func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready chan<- struct{}) (err error) {
+	defer func() {
+		if r := recover(); r != nil && err == nil {
+			err = fmt.Errorf("panic: %v", r)
+		}
+	}()
+
+	done, err := m.incrementWaitGroup()
+	if err != nil {
+		return err
+	}
+	defer done()
+
 	pk := sk.PublicKey()
 	node := Node{
 		ID:            NodeID(pk[:8]),
@@ -272,12 +284,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to mine blocks: %w", err)
 	}
 
-	m.put(node)
-	if ready != nil {
-		ready <- struct{}{}
-	}
-	<-ctx.Done()
-	m.delete(node.ID)
-	log.Info("shutting down")
+	m.addNodeAndWait(ctx, node, ready)
 	return nil
 }

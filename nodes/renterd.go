@@ -35,7 +35,19 @@ import (
 // StartRenterd starts a new renterd node and adds it to the manager.
 // This function blocks until the context is canceled. All resources will be
 // cleaned up before the function returns.
-func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready chan<- struct{}) error {
+func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready chan<- struct{}) (err error) {
+	defer func() {
+		if r := recover(); r != nil && err == nil {
+			err = fmt.Errorf("panic: %v", r)
+		}
+	}()
+
+	done, err := m.incrementWaitGroup()
+	if err != nil {
+		return err
+	}
+	defer done()
+
 	pk := sk.PublicKey()
 	node := Node{
 		ID:            NodeID(pk[:]),
@@ -399,12 +411,6 @@ waitForSync:
 	if _, err := autopilotClient.Trigger(true); err != nil {
 		return fmt.Errorf("failed to trigger autopilot: %w", err)
 	}
-	m.put(node)
-	if ready != nil {
-		ready <- struct{}{}
-	}
-	<-ctx.Done()
-	m.delete(node.ID)
-	log.Info("shutting down")
+	m.addNodeAndWait(ctx, node, ready)
 	return nil
 }

@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"go.sia.tech/cluster/api"
@@ -165,6 +164,7 @@ func main() {
 	go s.Run(ctx)
 
 	nm := nodes.NewManager(dir, cm, s, log.Named("cluster"))
+	defer nm.Close()
 
 	server := &http.Server{
 		Handler:     api.Handler(cm, s, nm, log.Named("api")),
@@ -173,14 +173,12 @@ func main() {
 	defer server.Close()
 	go server.Serve(apiListener)
 
-	var wg sync.WaitGroup
 	for i := 0; i < hostdCount; i++ {
-		wg.Add(1)
 		ready := make(chan struct{}, 1)
 		go func() {
-			defer wg.Done()
 			if err := nm.StartHostd(ctx, types.GeneratePrivateKey(), ready); err != nil {
-				log.Panic("hostd failed to start", zap.Error(err))
+				cancel()
+				log.Error("hostd failed to start", zap.Error(err))
 			}
 		}()
 		select {
@@ -191,12 +189,11 @@ func main() {
 	}
 
 	for i := 0; i < renterdCount; i++ {
-		wg.Add(1)
 		ready := make(chan struct{}, 1)
 		go func() {
-			defer wg.Done()
 			if err := nm.StartRenterd(ctx, types.GeneratePrivateKey(), ready); err != nil {
-				log.Panic("renterd failed to start", zap.Error(err))
+				cancel()
+				log.Error("renterd failed to start", zap.Error(err))
 			}
 		}()
 		select {
@@ -207,12 +204,11 @@ func main() {
 	}
 
 	for i := 0; i < walletdCount; i++ {
-		wg.Add(1)
 		ready := make(chan struct{}, 1)
 		go func() {
-			defer wg.Done()
 			if err := nm.StartWalletd(ctx, ready); err != nil {
-				log.Panic("walletd failed to start", zap.Error(err))
+				cancel()
+				log.Error("walletd failed to start", zap.Error(err))
 			}
 		}()
 		select {
@@ -228,6 +224,5 @@ func main() {
 	}
 
 	<-ctx.Done()
-	wg.Wait()
 	log.Info("shutdown complete")
 }
