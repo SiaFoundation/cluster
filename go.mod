@@ -3,7 +3,6 @@ module go.sia.tech/cluster
 go 1.23.0
 
 require (
-	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	go.sia.tech/core v0.4.6
 	go.sia.tech/coreutils v0.3.2
 	go.sia.tech/hostd v1.1.3-0.20240918201735-c199cca3bcef

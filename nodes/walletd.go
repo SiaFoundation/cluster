@@ -160,7 +160,6 @@ waitForSync:
 				break waitForSync
 			}
 		}
-
 	}
 
 	log.Info("node started", zap.Stringer("http", httpListener.Addr()), zap.String("version", build.Version()), zap.String("commit", build.Commit()))
