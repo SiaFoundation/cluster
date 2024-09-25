@@ -121,13 +121,14 @@ func (m *Manager) addNodeAndWait(ctx context.Context, node Node, ready chan<- st
 // Close closes the manager and all running nodes and waits for them to exit.
 func (m *Manager) Close() error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	select {
 	case <-m.close:
+		m.mu.Unlock()
 		return errors.New("manager already closed")
 	default:
 		close(m.close)
+		m.mu.Unlock()
 		m.wg.Wait()
 		return nil
 	}

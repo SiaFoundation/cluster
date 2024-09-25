@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/blake2b-simd"
 	"go.sia.tech/core/gateway"
 	"go.sia.tech/core/types"
 	"go.sia.tech/coreutils"
@@ -212,9 +211,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 	defer wm.Close()
 
-	masterKey := blake2b.Sum256(append([]byte("worker"), sk...))
-
-	b, err := bus.New(ctx, masterKey, am, wh, cm, s, wm, store, 24*time.Hour, log.Named("bus"))
+	b, err := bus.New(ctx, ([32]byte)(sk[:32]), am, wh, cm, s, wm, store, 24*time.Hour, log.Named("bus"))
 	if err != nil {
 		return fmt.Errorf("failed to create bus: %w", err)
 	}
@@ -244,7 +241,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		DownloadMaxMemory:        1 << 28, // 256 MiB
 		UploadMaxMemory:          1 << 28, // 256 MiB
 		UploadMaxOverdrive:       5,
-	}, masterKey, busClient, log.Named("worker"))
+	}, ([32]byte)(sk[:32]), busClient, log.Named("worker"))
 	if err != nil {
 		return fmt.Errorf("failed to create worker: %w", err)
 	}
