@@ -211,7 +211,8 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 	defer wm.Close()
 
-	b, err := bus.New(ctx, ([32]byte)(sk[:32]), am, wh, cm, s, wm, store, 24*time.Hour, log.Named("bus"))
+	explorerURL := "https://api.siascan.com/exchange-rate/siacoin"
+	b, err := bus.New(ctx, ([32]byte)(sk[:32]), am, wh, cm, s, wm, store, 24*time.Hour, explorerURL, log.Named("bus"))
 	if err != nil {
 		return fmt.Errorf("failed to create bus: %w", err)
 	}
@@ -333,7 +334,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		return fmt.Errorf("failed to update autopilot: %w", err)
 	}
 
-	err = busClient.UpdateSetting(ctx, api.SettingGouging, api.GougingSettings{
+	err = busClient.UpdateGougingSettings(ctx, api.GougingSettings{
 		MaxRPCPrice:      types.Siacoins(1).Div64(1000),        // 1mS per RPC
 		MaxContractPrice: types.Siacoins(10),                   // 10 SC per contract
 		MaxDownloadPrice: types.Siacoins(1).Mul64(1000),        // 1000 SC per 1 TiB
@@ -349,31 +350,35 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	if err != nil {
 		return fmt.Errorf("failed to update setting: %w", err)
 	}
-	err = busClient.UpdateSetting(ctx, api.SettingContractSet, api.ContractSetSetting{
-		Default: "autopilot",
+	if err != nil {
+		return fmt.Errorf("failed to update setting: %w", err)
+	}
+	err = busClient.UpdatePinnedSettings(ctx, api.PinnedSettings{
+		Currency:  "usd",
+		Threshold: 0.05,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update setting: %w", err)
 	}
-	err = busClient.UpdateSetting(ctx, api.SettingPricePinning, api.PricePinSettings{
-		Enabled:          false,
-		Currency:         "usd",
-		ForexEndpointURL: "https://api.siascan.com/exchange-rate/siacoin",
-		Threshold:        0.05,
+	err = busClient.UpdateUploadSettings(ctx, api.UploadSettings{
+		DefaultContractSet: "autopilot",
+		Redundancy: api.RedundancySettings{
+			MinShards:   2,
+			TotalShards: 3,
+		},
+		Packing: api.UploadPackingSettings{
+			Enabled:               true,
+			SlabBufferMaxSizeSoft: 1 << 20,
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update setting: %w", err)
 	}
-	err = busClient.UpdateSetting(ctx, api.SettingRedundancy, api.RedundancySettings{
-		MinShards:   2,
-		TotalShards: 3,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update setting: %w", err)
-	}
-	err = busClient.UpdateSetting(ctx, api.SettingS3Authentication, api.S3AuthenticationSettings{
-		V4Keypairs: map[string]string{
-			"TESTINGYNHUWCPKOPSYQ": "Rh30BNyj+qNI4ftYRteoZbHJ3X4Ln71QtZkRXzJ9",
+	err = busClient.UpdateS3Settings(ctx, api.S3Settings{
+		Authentication: api.S3AuthenticationSettings{
+			V4Keypairs: map[string]string{
+				"TESTINGYNHUWCPKOPSYQ": "Rh30BNyj+qNI4ftYRteoZbHJ3X4Ln71QtZkRXzJ9",
+			},
 		},
 	})
 	if err != nil {
