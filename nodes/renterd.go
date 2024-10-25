@@ -233,9 +233,9 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	w, err := worker.New(config.Worker{
 		AccountsRefillInterval:   time.Second,
 		ID:                       "worker",
-		BusFlushInterval:         100 * time.Millisecond,
-		DownloadOverdriveTimeout: 500 * time.Millisecond,
-		UploadOverdriveTimeout:   500 * time.Millisecond,
+		BusFlushInterval:         time.Second,
+		DownloadOverdriveTimeout: time.Second,
+		UploadOverdriveTimeout:   time.Second,
 		DownloadMaxMemory:        1 << 28, // 256 MiB
 		UploadMaxMemory:          1 << 28, // 256 MiB
 		UploadMaxOverdrive:       5,
