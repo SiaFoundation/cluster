@@ -29,7 +29,6 @@ import (
 	"go.sia.tech/hostd/host/storage"
 	"go.sia.tech/hostd/index"
 	"go.sia.tech/hostd/persist/sqlite"
-	"go.sia.tech/hostd/rhp"
 	rhp2 "go.sia.tech/hostd/rhp/v2"
 	rhp3 "go.sia.tech/hostd/rhp/v3"
 	"go.sia.tech/hostd/webhooks"
@@ -158,11 +157,16 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to create webhook reporter: %w", err)
 	}
 	defer wr.Close()
-	sr := rhp.NewSessionReporter()
 
 	am := alerts.NewManager(alerts.WithEventReporter(wr), alerts.WithLog(log.Named("alerts")))
 
-	cfm, err := settings.NewConfigManager(sk, store, cm, s, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")), settings.WithValidateNetAddress(false), settings.WithAnnounceInterval(144*30))
+	vm, err := storage.NewVolumeManager(store, storage.WithLogger(log.Named("volumes")), storage.WithAlerter(am))
+	if err != nil {
+		return fmt.Errorf("failed to create storage manager: %w", err)
+	}
+	defer vm.Close()
+
+	cfm, err := settings.NewConfigManager(sk, store, cm, s, wm, vm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")), settings.WithValidateNetAddress(false), settings.WithAnnounceInterval(144*30))
 	if err != nil {
 		return fmt.Errorf("failed to create settings manager: %w", err)
 	}
@@ -178,12 +182,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	if err := cfm.UpdateSettings(settings); err != nil {
 		return fmt.Errorf("failed to update settings: %w", err)
 	}
-
-	vm, err := storage.NewVolumeManager(store, storage.WithLogger(log.Named("volumes")), storage.WithAlerter(am))
-	if err != nil {
-		return fmt.Errorf("failed to create storage manager: %w", err)
-	}
-	defer vm.Close()
 
 	ch := make(chan error, 1)
 	if _, err := vm.AddVolume(ctx, filepath.Join(dir, "data.dat"), 256, ch); err != nil {
@@ -204,9 +202,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer index.Close()
 
-	dr := rhp.NewDataRecorder(store, log.Named("data"))
-
-	rhp2, err := rhp2.NewSessionHandler(rhp2Listener, sk, rhp3Listener.Addr().String(), cm, s, wm, contractManager, cfm, vm, rhp2.WithDataMonitor(dr), rhp2.WithLog(log.Named("rhp2")))
+	rhp2, err := rhp2.NewSessionHandler(rhp2Listener, sk, rhp3Listener.Addr().String(), cm, s, wm, contractManager, cfm, vm, log.Named("rhp2"))
 	if err != nil {
 		return fmt.Errorf("failed to create rhp2 session handler: %w", err)
 	}
@@ -215,7 +211,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 
 	registry := registry.NewManager(sk, store, log.Named("registry"))
 	accounts := accounts.NewManager(store, cfm)
-	rhp3, err := rhp3.NewSessionHandler(rhp3Listener, sk, cm, s, wm, accounts, contractManager, registry, vm, cfm, rhp3.WithDataMonitor(dr), rhp3.WithSessionReporter(sr), rhp3.WithLog(log.Named("rhp3")))
+	rhp3, err := rhp3.NewSessionHandler(rhp3Listener, sk, cm, s, wm, accounts, contractManager, registry, vm, cfm, log.Named("rhp3"))
 	if err != nil {
 		return fmt.Errorf("failed to create rhp3 session handler: %w", err)
 	}
@@ -230,7 +226,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 
 	a := jape.BasicAuth("sia is cool")(api.NewServer("", sk.PublicKey(), cm, s, accounts, contractManager, vm, wm, store, cfm, index, api.WithAlerts(am),
 		api.WithLogger(log.Named("api")),
-		api.WithRHPSessionReporter(sr),
 		api.WithWebhooks(wr),
 		api.WithPinnedSettings(pm),
 		api.WithExplorer(ex)))
