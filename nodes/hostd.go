@@ -15,6 +15,7 @@ import (
 	"go.sia.tech/core/types"
 	"go.sia.tech/coreutils"
 	"go.sia.tech/coreutils/chain"
+	rhp4 "go.sia.tech/coreutils/rhp/v4"
 	"go.sia.tech/coreutils/syncer"
 	"go.sia.tech/coreutils/testutil"
 	"go.sia.tech/coreutils/wallet"
@@ -29,6 +30,7 @@ import (
 	"go.sia.tech/hostd/host/storage"
 	"go.sia.tech/hostd/index"
 	"go.sia.tech/hostd/persist/sqlite"
+	"go.sia.tech/hostd/rhp"
 	rhp2 "go.sia.tech/hostd/rhp/v2"
 	rhp3 "go.sia.tech/hostd/rhp/v3"
 	"go.sia.tech/hostd/webhooks"
@@ -90,6 +92,12 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer rhp3Listener.Close()
 
+	rhp4Listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return fmt.Errorf("failed to listen on rhp4 addr: %w", err)
+	}
+	defer rhp4Listener.Close()
+
 	var cm *chain.Manager
 	var s *syncer.Syncer
 
@@ -123,7 +131,11 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		GenesisID:  genesisIndex.ID,
 		UniqueID:   gateway.GenerateUniqueID(),
 		NetAddress: "127.0.0.1:" + port,
-	}, syncer.WithLogger(log.Named("syncer")), syncer.WithPeerDiscoveryInterval(5*time.Second), syncer.WithSyncInterval(5*time.Second), syncer.WithMaxInboundPeers(10000), syncer.WithMaxOutboundPeers(10000))
+	}, syncer.WithLogger(log.Named("syncer")),
+		syncer.WithPeerDiscoveryInterval(5*time.Second),
+		syncer.WithSyncInterval(5*time.Second),
+		syncer.WithMaxInboundPeers(10000),
+		syncer.WithMaxOutboundPeers(10000))
 	defer s.Close()
 	go s.Run(ctx)
 	node.SyncerAddress = syncerListener.Addr().String()
@@ -166,7 +178,14 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer vm.Close()
 
-	cfm, err := settings.NewConfigManager(sk, store, cm, s, wm, vm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")), settings.WithValidateNetAddress(false), settings.WithAnnounceInterval(144*30))
+	cfm, err := settings.NewConfigManager(sk, store, cm, s, wm, vm,
+		settings.WithAlertManager(am),
+		settings.WithLog(log.Named("settings")),
+		settings.WithValidateNetAddress(false),
+		settings.WithAnnounceInterval(144*30),
+		settings.WithRHP4AnnounceAddresses([]chain.NetAddress{
+			{Protocol: rhp4.ProtocolTCPSiaMux, Address: rhp4Listener.Addr().String()},
+		}))
 	if err != nil {
 		return fmt.Errorf("failed to create settings manager: %w", err)
 	}
@@ -217,6 +236,9 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	go rhp3.Serve()
 	defer rhp3.Close()
+
+	rhp4 := rhp4.NewServer(sk, cm, s, contractManager, wm, cfm, vm)
+	go rhp.ServeRHP4SiaMux(rhp4Listener, rhp4, log.Named("rhp4.siamux"))
 
 	ex := explorer.New("https://api.siascan.com")
 	pm, err := pin.NewManager(store, cfm, ex, pin.WithLogger(log.Named("pin")))

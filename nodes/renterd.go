@@ -211,8 +211,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 	defer wm.Close()
 
-	explorerURL := "https://api.siascan.com/exchange-rate/siacoin"
-	b, err := bus.New(ctx, ([32]byte)(sk[:32]), am, wh, cm, s, wm, store, 24*time.Hour, explorerURL, log.Named("bus"))
+	b, err := bus.New(ctx, ([32]byte)(sk[:32]), am, wh, cm, s, wm, store, 24*time.Hour, "https://api.siascan.com", log.Named("bus"))
 	if err != nil {
 		return fmt.Errorf("failed to create bus: %w", err)
 	}
@@ -348,30 +347,21 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	if err != nil {
 		return fmt.Errorf("failed to update setting: %w", err)
 	}
-	if err != nil {
-		return fmt.Errorf("failed to update setting: %w", err)
-	}
-	err = busClient.UpdatePinnedSettings(ctx, api.PinnedSettings{
-		Currency:  "usd",
-		Threshold: 0.05,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update setting: %w", err)
-	}
+
 	err = busClient.UpdateUploadSettings(ctx, api.UploadSettings{
 		DefaultContractSet: "autopilot",
-		Redundancy: api.RedundancySettings{
-			MinShards:   2,
-			TotalShards: 3,
-		},
 		Packing: api.UploadPackingSettings{
-			Enabled:               true,
-			SlabBufferMaxSizeSoft: 1 << 20,
+			Enabled: false,
+		},
+		Redundancy: api.RedundancySettings{
+			MinShards:   10,
+			TotalShards: 30,
 		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update setting: %w", err)
 	}
+
 	err = busClient.UpdateS3Settings(ctx, api.S3Settings{
 		Authentication: api.S3AuthenticationSettings{
 			V4Keypairs: map[string]string{
