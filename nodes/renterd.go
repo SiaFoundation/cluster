@@ -284,7 +284,6 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		Contracts: api.ContractsConfig{
 			Set:         "autopilot",
 			Amount:      1000,
-			Allowance:   types.Siacoins(10000),
 			Period:      4320,
 			RenewWindow: 144 * 7,
 			Download:    1 << 30,
@@ -314,7 +313,6 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 			Contracts: api.ContractsConfig{
 				Set:         "autopilot",
 				Amount:      1000,
-				Allowance:   types.Siacoins(1000000),
 				Period:      4320,
 				RenewWindow: 144 * 7,
 				Download:    1 << 30,

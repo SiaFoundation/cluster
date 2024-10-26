@@ -9,7 +9,7 @@ require (
 	go.sia.tech/coreutils v0.4.2-0.20241017012544-0b4946403c93
 	go.sia.tech/hostd v1.1.3-0.20241022083902-7d61fc09be7c
 	go.sia.tech/jape v0.12.1
-	go.sia.tech/renterd v1.1.0-beta.4.0.20241023123004-609d9c36d290
+	go.sia.tech/renterd v1.1.0-beta.4.0.20241025151653-2b933326be16
 	go.sia.tech/walletd v0.8.1-0.20241021164545-5b34e523f8df
 	go.uber.org/zap v1.27.0
 	lukechampine.com/frand v1.5.1
