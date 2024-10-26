@@ -259,19 +259,32 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	node.APIAddress = "http://" + httpListener.Addr().String()
 	node.Password = "sia is cool"
 
+	waitForSync := func() error {
+		// wait for sync
+		for m.chain.Tip() != index.Tip() {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+		return nil
+	}
+
+	if err := waitForSync(); err != nil {
+		return fmt.Errorf("failed to wait for sync: %w", err)
+	}
+
+	log.Debug("node setup complete")
+
 	// mine blocks to fund the wallet
 	walletAddress := types.StandardUnlockHash(sk.PublicKey())
 	if err := m.MineBlocks(ctx, int(network.MaturityDelay)+20, walletAddress); err != nil {
 		return fmt.Errorf("failed to mine blocks: %w", err)
 	}
 
-	// wait for sync
-	for m.chain.Tip() != index.Tip() {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(100 * time.Millisecond):
-		}
+	if err := waitForSync(); err != nil {
+		return fmt.Errorf("failed to wait for sync: %w", err)
 	}
 
 	client := api.NewClient(node.APIAddress+"/api", node.Password)

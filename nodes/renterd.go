@@ -383,29 +383,34 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		return fmt.Errorf("failed to update setting: %w", err)
 	}
 
-	if _, err := autopilotClient.Trigger(true); err != nil {
-		return fmt.Errorf("failed to trigger autopilot: %w", err)
+	waitForSync := func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(100 * time.Millisecond):
+				state, err := busClient.ConsensusState(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to get consensus state: %w", err)
+				} else if state.BlockHeight == m.chain.Tip().Height {
+					return nil
+				}
+			}
+		}
+	}
+
+	if err := waitForSync(); err != nil {
+		return fmt.Errorf("failed to wait for sync: %w", err)
 	}
 
 	// mine blocks to fund the wallet
-	walletAddress := types.StandardUnlockHash(pk)
+	walletAddress := types.StandardUnlockHash(sk.PublicKey())
 	if err := m.MineBlocks(ctx, int(network.MaturityDelay)+20, walletAddress); err != nil {
 		return fmt.Errorf("failed to mine blocks: %w", err)
 	}
 
-waitForSync:
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(100 * time.Millisecond):
-			state, err := busClient.ConsensusState(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to get consensus state: %w", err)
-			} else if state.BlockHeight == m.chain.Tip().Height {
-				break waitForSync
-			}
-		}
+	if err := waitForSync(); err != nil {
+		return fmt.Errorf("failed to wait for sync: %w", err)
 	}
 
 	if _, err := autopilotClient.Trigger(true); err != nil {
