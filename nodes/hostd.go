@@ -261,7 +261,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 
 	// mine blocks to fund the wallet
 	walletAddress := types.StandardUnlockHash(sk.PublicKey())
-	if err := m.MineBlocks(ctx, int(network.GenesisState().MaturityHeight())+20, walletAddress); err != nil { // TODO: hack until network.MaturityDelay is available
+	if err := m.MineBlocks(ctx, int(network.MaturityDelay)+20, walletAddress); err != nil {
 		return fmt.Errorf("failed to mine blocks: %w", err)
 	}
 
