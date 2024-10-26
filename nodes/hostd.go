@@ -294,6 +294,10 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 
 	log.Debug("node setup complete")
 
+	if err := waitForSync(); err != nil {
+		return fmt.Errorf("failed to wait for sync: %w", err)
+	}
+
 	// mine blocks to fund the wallet
 	walletAddress := types.StandardUnlockHash(sk.PublicKey())
 	if err := m.MineBlocks(ctx, int(network.MaturityDelay)+20, walletAddress); err != nil {
