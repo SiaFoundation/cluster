@@ -291,7 +291,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		MigrationHealthCutoff:          0.99,
 		MigratorParallelSlabsPerWorker: 1,
 		RevisionSubmissionBuffer:       0,
-		ScannerInterval:                time.Second,
+		ScannerInterval:                15 * time.Second,
 		ScannerBatchSize:               10,
 		ScannerNumThreads:              1,
 	}, busClient, []autopilot.Worker{workerClient}, log.Named("autopilot"))
