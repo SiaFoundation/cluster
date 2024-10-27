@@ -74,59 +74,63 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer httpListener.Close()
 
-	syncerListener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return fmt.Errorf("failed to listen on syncer address: %w", err)
-	}
-	defer syncerListener.Close()
+	network := m.chain.TipState().Network
 
 	var cm *chain.Manager
 	var s *syncer.Syncer
-
-	// start a chain manager
-	network := m.chain.TipState().Network
-	genesisIndex, ok := m.chain.BestIndex(0)
-	if !ok {
-		return errors.New("failed to get genesis index")
-	}
-	genesis, ok := m.chain.Block(genesisIndex.ID)
-	if !ok {
-		return errors.New("failed to get genesis block")
-	}
-	bdb, err := coreutils.OpenBoltChainDB(filepath.Join(dir, "consensus.db"))
-	if err != nil {
-		return fmt.Errorf("failed to open bolt db: %w", err)
-	}
-	defer bdb.Close()
-	dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis)
-	if err != nil {
-		return fmt.Errorf("failed to create dbstore: %w", err)
-	}
-	cm = chain.NewManager(dbstore, tipState)
-
-	// start a syncer
-	_, port, err := net.SplitHostPort(syncerListener.Addr().String())
-	if err != nil {
-		return fmt.Errorf("failed to split syncer address: %w", err)
-	}
-	s = syncer.New(syncerListener, cm, testutil.NewMemPeerStore(), gateway.Header{
-		GenesisID:  genesisIndex.ID,
-		UniqueID:   gateway.GenerateUniqueID(),
-		NetAddress: "127.0.0.1:" + port,
-	}, syncer.WithLogger(log.Named("syncer")), syncer.WithPeerDiscoveryInterval(5*time.Second), syncer.WithSyncInterval(5*time.Second), syncer.WithMaxInboundPeers(10000), syncer.WithMaxOutboundPeers(10000))
-	defer s.Close()
-	go s.Run(ctx)
-	node.SyncerAddress = syncerListener.Addr().String()
-	// connect to the cluster syncer
-	_, err = m.syncer.Connect(ctx, node.SyncerAddress)
-	if err != nil {
-		return fmt.Errorf("failed to connect to cluster syncer: %w", err)
-	}
-	// connect to other nodes in the cluster
-	for _, n := range m.Nodes() {
-		_, err = s.Connect(ctx, n.SyncerAddress)
+	if m.shareConsensus {
+		cm = m.chain
+		s = m.syncer
+	} else {
+		// start a chain manager
+		genesisIndex, ok := m.chain.BestIndex(0)
+		if !ok {
+			return errors.New("failed to get genesis index")
+		}
+		genesis, ok := m.chain.Block(genesisIndex.ID)
+		if !ok {
+			return errors.New("failed to get genesis block")
+		}
+		bdb, err := coreutils.OpenBoltChainDB(filepath.Join(dir, "consensus.db"))
 		if err != nil {
-			log.Debug("failed to connect to node", zap.String("node", n.ID.String()), zap.Error(err))
+			return fmt.Errorf("failed to open bolt db: %w", err)
+		}
+		defer bdb.Close()
+		dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis)
+		if err != nil {
+			return fmt.Errorf("failed to create dbstore: %w", err)
+		}
+
+		cm = chain.NewManager(dbstore, tipState)
+
+		syncerListener, err := net.Listen("tcp", ":0")
+		if err != nil {
+			return fmt.Errorf("failed to listen on syncer address: %w", err)
+		}
+		defer syncerListener.Close()
+
+		// start a syncer
+		_, port, err := net.SplitHostPort(syncerListener.Addr().String())
+		if err != nil {
+			return fmt.Errorf("failed to split syncer address: %w", err)
+		}
+		s = syncer.New(syncerListener, cm, testutil.NewMemPeerStore(), gateway.Header{
+			GenesisID:  genesisIndex.ID,
+			UniqueID:   gateway.GenerateUniqueID(),
+			NetAddress: "127.0.0.1:" + port,
+		}, syncer.WithLogger(log.Named("syncer")),
+			syncer.WithPeerDiscoveryInterval(5*time.Second),
+			syncer.WithSyncInterval(5*time.Second),
+			syncer.WithMaxInboundPeers(10000),
+			syncer.WithMaxOutboundPeers(10000))
+		defer s.Close()
+		go s.Run(ctx)
+
+		node.SyncerAddress = syncerListener.Addr().String()
+		// connect to the cluster syncer
+		_, err = m.syncer.Connect(ctx, node.SyncerAddress)
+		if err != nil {
+			return fmt.Errorf("failed to connect to cluster syncer: %w", err)
 		}
 	}
 
