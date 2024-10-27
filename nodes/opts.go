@@ -12,6 +12,8 @@ func WithLog(l *zap.Logger) Option {
 	}
 }
 
+// WithSharedConsensus set whether nodes should share a consensus database
+// or initialize their own and sync with each other.
 func WithSharedConsensus(shared bool) Option {
 	return func(m *Manager) {
 		m.shareConsensus = shared
