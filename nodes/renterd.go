@@ -31,6 +31,24 @@ import (
 	"go.uber.org/zap"
 )
 
+type spoofedSyncer struct {
+	*syncer.Syncer
+}
+
+func (s *spoofedSyncer) Connect(ctx context.Context, addr string) (*syncer.Peer, error) {
+	return new(syncer.Peer), nil
+}
+
+func (s *spoofedSyncer) Peers() (peers []*syncer.Peer) {
+	for i := 0; i < 10; i++ {
+		peers = append(peers, &syncer.Peer{
+			ConnAddr: "",
+			Inbound:  false,
+		})
+	}
+	return
+}
+
 // StartRenterd starts a new renterd node and adds it to the manager.
 // This function blocks until the context is canceled. All resources will be
 // cleaned up before the function returns.
@@ -210,7 +228,11 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 	defer wm.Close()
 
-	explorerURL := "https://api.siascan.com"
+	var bs bus.Syncer = s
+	if m.shareConsensus {
+		// note: autopilot refuses to start without peers
+		bs = &spoofedSyncer{s}
+	}
 	b, err := bus.New(ctx, config.Bus{
 		AllowPrivateIPs:               true,
 		AnnouncementMaxAgeHours:       90 * 24,
@@ -218,7 +240,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		GatewayAddr:                   s.Addr(),
 		UsedUTXOExpiry:                time.Hour,
 		SlabBufferCompletionThreshold: 1 << 12,
-	}, ([32]byte)(sk[:32]), am, wh, cm, s, wm, store, explorerURL, log.Named("bus"))
+	}, ([32]byte)(sk[:32]), am, wh, cm, bs, wm, store, "https://api.siascan.com", log.Named("bus"))
 	if err != nil {
 		return fmt.Errorf("failed to create bus: %w", err)
 	}
@@ -378,6 +400,12 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		return fmt.Errorf("failed to update setting: %w", err)
 	}
 
+	walletAddress := types.StandardUnlockHash(sk.PublicKey())
+	// note: renterd does not properly trigger synced unless a block is mined
+	if err := m.MineBlocks(ctx, 1, walletAddress); err != nil {
+		return fmt.Errorf("failed to mine blocks: %w", err)
+	}
+
 	waitForSync := func() error {
 		for {
 			select {
@@ -390,6 +418,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 				} else if state.BlockHeight == m.chain.Tip().Height {
 					return nil
 				}
+				log.Debug("waiting for sync", zap.Bool("synced", state.Synced), zap.Uint64("height", state.BlockHeight))
 			}
 		}
 	}
@@ -399,7 +428,6 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 
 	// mine blocks to fund the wallet
-	walletAddress := types.StandardUnlockHash(sk.PublicKey())
 	if err := m.MineBlocks(ctx, int(network.MaturityDelay)+20, walletAddress); err != nil {
 		return fmt.Errorf("failed to mine blocks: %w", err)
 	}

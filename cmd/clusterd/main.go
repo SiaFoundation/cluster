@@ -163,7 +163,7 @@ func main() {
 	defer s.Close()
 	go s.Run(ctx)
 
-	nm := nodes.NewManager(dir, cm, s, nodes.WithLog(log.Named("cluster")))
+	nm := nodes.NewManager(dir, cm, s, nodes.WithLog(log.Named("cluster")), nodes.WithSharedConsensus(true))
 	defer nm.Close()
 
 	server := &http.Server{
