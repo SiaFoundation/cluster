@@ -197,7 +197,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	defer server.Close()
 	go server.Serve(apiListener)
 
-	wm, err := wallet.NewSingleAddressWallet(sk, cm, store)
+	wm, err := wallet.NewSingleAddressWallet(sk, cm, store, wallet.WithMaxDefragUTXOs(0), wallet.WithReservationDuration(3*time.Hour))
 	if err != nil {
 		return fmt.Errorf("failed to create wallet: %w", err)
 	}

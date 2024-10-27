@@ -158,7 +158,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer store.Close()
 
-	wm, err := wallet.NewSingleAddressWallet(sk, cm, store, wallet.WithLogger(log.Named("wallet")), wallet.WithReservationDuration(3*time.Hour))
+	wm, err := wallet.NewSingleAddressWallet(sk, cm, store, wallet.WithLogger(log.Named("wallet")), wallet.WithMaxDefragUTXOs(0), wallet.WithReservationDuration(3*time.Hour))
 	if err != nil {
 		return fmt.Errorf("failed to create wallet: %w", err)
 	}
