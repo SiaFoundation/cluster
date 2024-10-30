@@ -9,7 +9,7 @@ require (
 	go.sia.tech/coreutils v0.5.0
 	go.sia.tech/hostd v1.1.3-0.20241022083902-7d61fc09be7c
 	go.sia.tech/jape v0.12.1
-	go.sia.tech/renterd v1.1.0-beta.4.0.20241025151653-2b933326be16
+	go.sia.tech/renterd v1.1.0-beta.4.0.20241030143417-e4fe42de199d
 	go.sia.tech/walletd v0.8.1-0.20241021164545-5b34e523f8df
 	go.uber.org/zap v1.27.0
 	lukechampine.com/frand v1.5.1
@@ -18,7 +18,7 @@ require (
 require (
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
 	github.com/cloudflare/cloudflare-go v0.107.0 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.5 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.6 // indirect
 	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/gotd/contrib v0.20.0 // indirect

@@ -151,17 +151,9 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		Migrate:                       true,
 		SlabBufferCompletionThreshold: 1 << 12,
 		Logger:                        log.Named("store"),
-		RetryTransactionIntervals: []time.Duration{
-			200 * time.Millisecond,
-			500 * time.Millisecond,
-			time.Second,
-			3 * time.Second,
-			10 * time.Second,
-			10 * time.Second,
-		},
-		WalletAddress:     types.StandardUnlockHash(pk),
-		LongQueryDuration: time.Second,
-		LongTxDuration:    time.Second,
+		WalletAddress:                 types.StandardUnlockHash(pk),
+		LongQueryDuration:             time.Second,
+		LongTxDuration:                time.Second,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create store: %w", err)
