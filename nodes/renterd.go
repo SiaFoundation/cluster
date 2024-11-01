@@ -204,7 +204,14 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	defer wm.Close()
 
 	explorerURL := "https://api.siascan.com/exchange-rate/siacoin"
-	b, err := bus.New(ctx, ([32]byte)(sk[:32]), am, wh, cm, s, wm, store, 24*time.Hour, explorerURL, log.Named("bus"))
+	b, err := bus.New(ctx, config.Bus{
+		AllowPrivateIPs:               true,
+		AnnouncementMaxAgeHours:       90 * 24,
+		Bootstrap:                     true,
+		GatewayAddr:                   s.Addr(),
+		UsedUTXOExpiry:                time.Hour,
+		SlabBufferCompletionThreshold: 1 << 12,
+	}, ([32]byte)(sk[:32]), am, wh, cm, s, wm, store, explorerURL, log.Named("bus"))
 	if err != nil {
 		return fmt.Errorf("failed to create bus: %w", err)
 	}
@@ -225,7 +232,6 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 
 	w, err := worker.New(config.Worker{
 		AccountsRefillInterval:   time.Second,
-		AllowPrivateIPs:          true,
 		ContractLockTimeout:      5 * time.Second,
 		ID:                       "worker",
 		BusFlushInterval:         100 * time.Millisecond,
