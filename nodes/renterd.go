@@ -232,7 +232,6 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 
 	w, err := worker.New(config.Worker{
 		AccountsRefillInterval:   time.Second,
-		ContractLockTimeout:      5 * time.Second,
 		ID:                       "worker",
 		BusFlushInterval:         100 * time.Millisecond,
 		DownloadOverdriveTimeout: 500 * time.Millisecond,
