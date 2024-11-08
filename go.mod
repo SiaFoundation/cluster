@@ -7,7 +7,7 @@ toolchain go1.23.2
 require (
 	go.sia.tech/core v0.6.1
 	go.sia.tech/coreutils v0.6.0
-	go.sia.tech/hostd v1.1.3-0.20241101150257-8319b75af8b2
+	go.sia.tech/hostd v1.1.3-0.20241101192444-1058cfa70082
 	go.sia.tech/jape v0.12.1
 	go.sia.tech/renterd v1.1.0-beta.5.0.20241108111642-4b0f42a3d24f
 	go.sia.tech/walletd v0.8.1-0.20241101091153-465e9da22d82
@@ -42,5 +42,4 @@ require (
 	golang.org/x/text v0.19.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
 	golang.org/x/tools v0.23.0 // indirect
-	nhooyr.io/websocket v1.8.17 // indirect
 )

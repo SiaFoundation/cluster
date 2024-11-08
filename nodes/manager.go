@@ -45,10 +45,11 @@ type (
 
 	// A Manager manages a set of nodes in the cluster.
 	Manager struct {
-		dir    string
-		chain  *chain.Manager
-		syncer *syncer.Syncer
-		log    *zap.Logger
+		dir            string
+		chain          *chain.Manager
+		syncer         *syncer.Syncer
+		log            *zap.Logger
+		shareConsensus bool
 
 		mu    sync.Mutex
 		wg    sync.WaitGroup
@@ -226,15 +227,19 @@ func createNodeDir(baseDir string, id NodeID) (dir string, err error) {
 }
 
 // NewManager creates a new node manager.
-func NewManager(dir string, cm *chain.Manager, s *syncer.Syncer, log *zap.Logger) *Manager {
-	return &Manager{
+func NewManager(dir string, cm *chain.Manager, s *syncer.Syncer, opts ...Option) *Manager {
+	m := &Manager{
 		dir:    dir,
 		chain:  cm,
 		syncer: s,
-		log:    log,
+		log:    zap.NewNop(),
 
 		nodes: make(map[NodeID]Node),
 
 		close: make(chan struct{}),
 	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
 }

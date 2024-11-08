@@ -31,6 +31,24 @@ import (
 	"go.uber.org/zap"
 )
 
+type spoofedSyncer struct {
+	*syncer.Syncer
+}
+
+func (s *spoofedSyncer) Connect(ctx context.Context, addr string) (*syncer.Peer, error) {
+	return new(syncer.Peer), nil
+}
+
+func (s *spoofedSyncer) Peers() (peers []*syncer.Peer) {
+	for i := 0; i < 10; i++ {
+		peers = append(peers, &syncer.Peer{
+			ConnAddr: "",
+			Inbound:  false,
+		})
+	}
+	return
+}
+
 // StartRenterd starts a new renterd node and adds it to the manager.
 // This function blocks until the context is canceled. All resources will be
 // cleaned up before the function returns.
@@ -61,62 +79,69 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 	defer os.RemoveAll(dir)
 
-	syncerListener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return fmt.Errorf("failed to listen on syncer address: %w", err)
-	}
-	defer syncerListener.Close()
-
 	apiListener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		return fmt.Errorf("failed to listen on http address: %w", err)
 	}
 	defer apiListener.Close()
 
-	// start a chain manager
 	network := m.chain.TipState().Network
-	genesisIndex, ok := m.chain.BestIndex(0)
-	if !ok {
-		return errors.New("failed to get genesis index")
-	}
-	genesis, ok := m.chain.Block(genesisIndex.ID)
-	if !ok {
-		return errors.New("failed to get genesis block")
-	}
-	bdb, err := coreutils.OpenBoltChainDB(filepath.Join(dir, "consensus.db"))
-	if err != nil {
-		return fmt.Errorf("failed to open bolt db: %w", err)
-	}
-	defer bdb.Close()
-	dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis)
-	if err != nil {
-		return fmt.Errorf("failed to create dbstore: %w", err)
-	}
-	cm := chain.NewManager(dbstore, tipState)
 
-	// start a syncer
-	_, port, err := net.SplitHostPort(syncerListener.Addr().String())
-	if err != nil {
-		return fmt.Errorf("failed to split syncer address: %w", err)
-	}
-	s := syncer.New(syncerListener, cm, testutil.NewMemPeerStore(), gateway.Header{
-		GenesisID:  genesisIndex.ID,
-		UniqueID:   gateway.GenerateUniqueID(),
-		NetAddress: "127.0.0.1:" + port,
-	}, syncer.WithLogger(log.Named("syncer")), syncer.WithPeerDiscoveryInterval(5*time.Second), syncer.WithSyncInterval(5*time.Second), syncer.WithMaxOutboundPeers(10000), syncer.WithMaxInboundPeers(10000))
-	defer s.Close()
-	go s.Run(ctx)
-	node.SyncerAddress = syncerListener.Addr().String()
-	// connect to the cluster syncer
-	_, err = m.syncer.Connect(ctx, node.SyncerAddress)
-	if err != nil {
-		return fmt.Errorf("failed to connect to cluster syncer: %w", err)
-	}
-	// connect to other nodes in the cluster
-	for _, n := range m.Nodes() {
-		_, err = s.Connect(ctx, n.SyncerAddress)
+	var cm *chain.Manager
+	var s *syncer.Syncer
+	if m.shareConsensus {
+		cm = m.chain
+		s = m.syncer
+	} else {
+		// start a chain manager
+		genesisIndex, ok := m.chain.BestIndex(0)
+		if !ok {
+			return errors.New("failed to get genesis index")
+		}
+		genesis, ok := m.chain.Block(genesisIndex.ID)
+		if !ok {
+			return errors.New("failed to get genesis block")
+		}
+		bdb, err := coreutils.OpenBoltChainDB(filepath.Join(dir, "consensus.db"))
 		if err != nil {
-			log.Debug("failed to connect to peer syncer", zap.Stringer("peer", n.ID), zap.Error(err))
+			return fmt.Errorf("failed to open bolt db: %w", err)
+		}
+		defer bdb.Close()
+		dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis)
+		if err != nil {
+			return fmt.Errorf("failed to create dbstore: %w", err)
+		}
+
+		cm = chain.NewManager(dbstore, tipState)
+
+		syncerListener, err := net.Listen("tcp", ":0")
+		if err != nil {
+			return fmt.Errorf("failed to listen on syncer address: %w", err)
+		}
+		defer syncerListener.Close()
+
+		// start a syncer
+		_, port, err := net.SplitHostPort(syncerListener.Addr().String())
+		if err != nil {
+			return fmt.Errorf("failed to split syncer address: %w", err)
+		}
+		s = syncer.New(syncerListener, cm, testutil.NewMemPeerStore(), gateway.Header{
+			GenesisID:  genesisIndex.ID,
+			UniqueID:   gateway.GenerateUniqueID(),
+			NetAddress: "127.0.0.1:" + port,
+		}, syncer.WithLogger(log.Named("syncer")),
+			syncer.WithPeerDiscoveryInterval(5*time.Second),
+			syncer.WithSyncInterval(5*time.Second),
+			syncer.WithMaxInboundPeers(10000),
+			syncer.WithMaxOutboundPeers(10000))
+		defer s.Close()
+		go s.Run(ctx)
+
+		node.SyncerAddress = syncerListener.Addr().String()
+		// connect to the cluster syncer
+		_, err = m.syncer.Connect(ctx, node.SyncerAddress)
+		if err != nil {
+			return fmt.Errorf("failed to connect to cluster syncer: %w", err)
 		}
 	}
 
@@ -197,13 +222,17 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	defer server.Close()
 	go server.Serve(apiListener)
 
-	wm, err := wallet.NewSingleAddressWallet(sk, cm, store)
+	wm, err := wallet.NewSingleAddressWallet(sk, cm, store, wallet.WithMaxDefragUTXOs(0), wallet.WithReservationDuration(3*time.Hour))
 	if err != nil {
 		return fmt.Errorf("failed to create wallet: %w", err)
 	}
 	defer wm.Close()
 
-	explorerURL := "https://api.siascan.com/exchange-rate/siacoin"
+	var bs bus.Syncer = s
+	if m.shareConsensus {
+		// note: autopilot refuses to start without peers
+		bs = &spoofedSyncer{s}
+	}
 	b, err := bus.New(ctx, config.Bus{
 		AllowPrivateIPs:               true,
 		AnnouncementMaxAgeHours:       90 * 24,
@@ -211,7 +240,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		GatewayAddr:                   s.Addr(),
 		UsedUTXOExpiry:                time.Hour,
 		SlabBufferCompletionThreshold: 1 << 12,
-	}, ([32]byte)(sk[:32]), am, wh, cm, s, wm, store, explorerURL, log.Named("bus"))
+	}, ([32]byte)(sk[:32]), am, wh, cm, bs, wm, store, "https://api.siascan.com", log.Named("bus"))
 	if err != nil {
 		return fmt.Errorf("failed to create bus: %w", err)
 	}
@@ -233,9 +262,9 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	w, err := worker.New(config.Worker{
 		AccountsRefillInterval:   time.Second,
 		ID:                       "worker",
-		BusFlushInterval:         100 * time.Millisecond,
-		DownloadOverdriveTimeout: 500 * time.Millisecond,
-		UploadOverdriveTimeout:   500 * time.Millisecond,
+		BusFlushInterval:         time.Second,
+		DownloadOverdriveTimeout: time.Second,
+		UploadOverdriveTimeout:   time.Second,
 		DownloadMaxMemory:        1 << 28, // 256 MiB
 		UploadMaxMemory:          1 << 28, // 256 MiB
 		UploadMaxOverdrive:       5,
@@ -262,7 +291,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		MigrationHealthCutoff:          0.99,
 		MigratorParallelSlabsPerWorker: 1,
 		RevisionSubmissionBuffer:       0,
-		ScannerInterval:                time.Second,
+		ScannerInterval:                15 * time.Second,
 		ScannerBatchSize:               10,
 		ScannerNumThreads:              1,
 	}, busClient, []autopilot.Worker{workerClient}, log.Named("autopilot"))
@@ -345,30 +374,21 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	if err != nil {
 		return fmt.Errorf("failed to update setting: %w", err)
 	}
-	if err != nil {
-		return fmt.Errorf("failed to update setting: %w", err)
-	}
-	err = busClient.UpdatePinnedSettings(ctx, api.PinnedSettings{
-		Currency:  "usd",
-		Threshold: 0.05,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update setting: %w", err)
-	}
+
 	err = busClient.UpdateUploadSettings(ctx, api.UploadSettings{
 		DefaultContractSet: "autopilot",
-		Redundancy: api.RedundancySettings{
-			MinShards:   2,
-			TotalShards: 3,
-		},
 		Packing: api.UploadPackingSettings{
-			Enabled:               true,
-			SlabBufferMaxSizeSoft: 1 << 20,
+			Enabled: false,
+		},
+		Redundancy: api.RedundancySettings{
+			MinShards:   10,
+			TotalShards: 30,
 		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update setting: %w", err)
 	}
+
 	err = busClient.UpdateS3Settings(ctx, api.S3Settings{
 		Authentication: api.S3AuthenticationSettings{
 			V4Keypairs: map[string]string{
@@ -378,6 +398,12 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update setting: %w", err)
+	}
+
+	walletAddress := types.StandardUnlockHash(sk.PublicKey())
+	// note: renterd does not properly trigger synced unless a block is mined
+	if err := m.MineBlocks(ctx, 1, walletAddress); err != nil {
+		return fmt.Errorf("failed to mine blocks: %w", err)
 	}
 
 	waitForSync := func() error {
@@ -392,6 +418,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 				} else if state.BlockHeight == m.chain.Tip().Height {
 					return nil
 				}
+				log.Debug("waiting for sync", zap.Bool("synced", state.Synced), zap.Uint64("height", state.BlockHeight))
 			}
 		}
 	}
@@ -401,7 +428,6 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 
 	// mine blocks to fund the wallet
-	walletAddress := types.StandardUnlockHash(sk.PublicKey())
 	if err := m.MineBlocks(ctx, int(network.MaturityDelay)+20, walletAddress); err != nil {
 		return fmt.Errorf("failed to mine blocks: %w", err)
 	}

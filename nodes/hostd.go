@@ -15,6 +15,7 @@ import (
 	"go.sia.tech/core/types"
 	"go.sia.tech/coreutils"
 	"go.sia.tech/coreutils/chain"
+	rhp4 "go.sia.tech/coreutils/rhp/v4"
 	"go.sia.tech/coreutils/syncer"
 	"go.sia.tech/coreutils/testutil"
 	"go.sia.tech/coreutils/wallet"
@@ -73,12 +74,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer httpListener.Close()
 
-	syncerListener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return fmt.Errorf("failed to listen on syncer address: %w", err)
-	}
-	defer syncerListener.Close()
-
 	rhp2Listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		return fmt.Errorf("failed to listen on rhp2 addr: %w", err)
@@ -91,53 +86,69 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer rhp3Listener.Close()
 
+	rhp4Listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return fmt.Errorf("failed to listen on rhp4 addr: %w", err)
+	}
+	defer rhp4Listener.Close()
+
+	network := m.chain.TipState().Network
+
 	var cm *chain.Manager
 	var s *syncer.Syncer
-
-	// start a chain manager
-	network := m.chain.TipState().Network
-	genesisIndex, ok := m.chain.BestIndex(0)
-	if !ok {
-		return errors.New("failed to get genesis index")
-	}
-	genesis, ok := m.chain.Block(genesisIndex.ID)
-	if !ok {
-		return errors.New("failed to get genesis block")
-	}
-	bdb, err := coreutils.OpenBoltChainDB(filepath.Join(dir, "consensus.db"))
-	if err != nil {
-		return fmt.Errorf("failed to open bolt db: %w", err)
-	}
-	defer bdb.Close()
-	dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis)
-	if err != nil {
-		return fmt.Errorf("failed to create dbstore: %w", err)
-	}
-	cm = chain.NewManager(dbstore, tipState)
-
-	// start a syncer
-	_, port, err := net.SplitHostPort(syncerListener.Addr().String())
-	if err != nil {
-		return fmt.Errorf("failed to split syncer address: %w", err)
-	}
-	s = syncer.New(syncerListener, cm, testutil.NewMemPeerStore(), gateway.Header{
-		GenesisID:  genesisIndex.ID,
-		UniqueID:   gateway.GenerateUniqueID(),
-		NetAddress: "127.0.0.1:" + port,
-	}, syncer.WithLogger(log.Named("syncer")), syncer.WithPeerDiscoveryInterval(5*time.Second), syncer.WithSyncInterval(5*time.Second), syncer.WithMaxInboundPeers(10000), syncer.WithMaxOutboundPeers(10000))
-	defer s.Close()
-	go s.Run(ctx)
-	node.SyncerAddress = syncerListener.Addr().String()
-	// connect to the cluster syncer
-	_, err = m.syncer.Connect(ctx, node.SyncerAddress)
-	if err != nil {
-		return fmt.Errorf("failed to connect to cluster syncer: %w", err)
-	}
-	// connect to other nodes in the cluster
-	for _, n := range m.Nodes() {
-		_, err = s.Connect(ctx, n.SyncerAddress)
+	if m.shareConsensus {
+		cm = m.chain
+		s = m.syncer
+	} else {
+		// start a chain manager
+		genesisIndex, ok := m.chain.BestIndex(0)
+		if !ok {
+			return errors.New("failed to get genesis index")
+		}
+		genesis, ok := m.chain.Block(genesisIndex.ID)
+		if !ok {
+			return errors.New("failed to get genesis block")
+		}
+		bdb, err := coreutils.OpenBoltChainDB(filepath.Join(dir, "consensus.db"))
 		if err != nil {
-			log.Debug("failed to connect to node", zap.String("node", n.ID.String()), zap.Error(err))
+			return fmt.Errorf("failed to open bolt db: %w", err)
+		}
+		defer bdb.Close()
+		dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis)
+		if err != nil {
+			return fmt.Errorf("failed to create dbstore: %w", err)
+		}
+
+		cm = chain.NewManager(dbstore, tipState)
+
+		syncerListener, err := net.Listen("tcp", ":0")
+		if err != nil {
+			return fmt.Errorf("failed to listen on syncer address: %w", err)
+		}
+		defer syncerListener.Close()
+
+		// start a syncer
+		_, port, err := net.SplitHostPort(syncerListener.Addr().String())
+		if err != nil {
+			return fmt.Errorf("failed to split syncer address: %w", err)
+		}
+		s = syncer.New(syncerListener, cm, testutil.NewMemPeerStore(), gateway.Header{
+			GenesisID:  genesisIndex.ID,
+			UniqueID:   gateway.GenerateUniqueID(),
+			NetAddress: "127.0.0.1:" + port,
+		}, syncer.WithLogger(log.Named("syncer")),
+			syncer.WithPeerDiscoveryInterval(5*time.Second),
+			syncer.WithSyncInterval(5*time.Second),
+			syncer.WithMaxInboundPeers(10000),
+			syncer.WithMaxOutboundPeers(10000))
+		defer s.Close()
+		go s.Run(ctx)
+
+		node.SyncerAddress = syncerListener.Addr().String()
+		// connect to the cluster syncer
+		_, err = m.syncer.Connect(ctx, node.SyncerAddress)
+		if err != nil {
+			return fmt.Errorf("failed to connect to cluster syncer: %w", err)
 		}
 	}
 
@@ -147,7 +158,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer store.Close()
 
-	wm, err := wallet.NewSingleAddressWallet(sk, cm, store, wallet.WithLogger(log.Named("wallet")), wallet.WithReservationDuration(3*time.Hour))
+	wm, err := wallet.NewSingleAddressWallet(sk, cm, store, wallet.WithLogger(log.Named("wallet")), wallet.WithMaxDefragUTXOs(0), wallet.WithReservationDuration(3*time.Hour))
 	if err != nil {
 		return fmt.Errorf("failed to create wallet: %w", err)
 	}
@@ -158,11 +169,23 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to create webhook reporter: %w", err)
 	}
 	defer wr.Close()
-	sr := rhp.NewSessionReporter()
 
 	am := alerts.NewManager(alerts.WithEventReporter(wr), alerts.WithLog(log.Named("alerts")))
 
-	cfm, err := settings.NewConfigManager(sk, store, cm, s, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")), settings.WithValidateNetAddress(false), settings.WithAnnounceInterval(144*30))
+	vm, err := storage.NewVolumeManager(store, storage.WithLogger(log.Named("volumes")), storage.WithAlerter(am))
+	if err != nil {
+		return fmt.Errorf("failed to create storage manager: %w", err)
+	}
+	defer vm.Close()
+
+	cfm, err := settings.NewConfigManager(sk, store, cm, s, wm, vm,
+		settings.WithAlertManager(am),
+		settings.WithLog(log.Named("settings")),
+		settings.WithValidateNetAddress(false),
+		settings.WithAnnounceInterval(144*30),
+		settings.WithRHP4AnnounceAddresses([]chain.NetAddress{
+			{Protocol: rhp4.ProtocolTCPSiaMux, Address: rhp4Listener.Addr().String()},
+		}))
 	if err != nil {
 		return fmt.Errorf("failed to create settings manager: %w", err)
 	}
@@ -178,12 +201,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	if err := cfm.UpdateSettings(settings); err != nil {
 		return fmt.Errorf("failed to update settings: %w", err)
 	}
-
-	vm, err := storage.NewVolumeManager(store, storage.WithLogger(log.Named("volumes")), storage.WithAlerter(am))
-	if err != nil {
-		return fmt.Errorf("failed to create storage manager: %w", err)
-	}
-	defer vm.Close()
 
 	ch := make(chan error, 1)
 	if _, err := vm.AddVolume(ctx, filepath.Join(dir, "data.dat"), 256, ch); err != nil {
@@ -204,9 +221,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer index.Close()
 
-	dr := rhp.NewDataRecorder(store, log.Named("data"))
-
-	rhp2, err := rhp2.NewSessionHandler(rhp2Listener, sk, rhp3Listener.Addr().String(), cm, s, wm, contractManager, cfm, vm, rhp2.WithDataMonitor(dr), rhp2.WithLog(log.Named("rhp2")))
+	rhp2, err := rhp2.NewSessionHandler(rhp2Listener, sk, rhp3Listener.Addr().String(), cm, s, wm, contractManager, cfm, vm, log.Named("rhp2"))
 	if err != nil {
 		return fmt.Errorf("failed to create rhp2 session handler: %w", err)
 	}
@@ -215,12 +230,15 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 
 	registry := registry.NewManager(sk, store, log.Named("registry"))
 	accounts := accounts.NewManager(store, cfm)
-	rhp3, err := rhp3.NewSessionHandler(rhp3Listener, sk, cm, s, wm, accounts, contractManager, registry, vm, cfm, rhp3.WithDataMonitor(dr), rhp3.WithSessionReporter(sr), rhp3.WithLog(log.Named("rhp3")))
+	rhp3, err := rhp3.NewSessionHandler(rhp3Listener, sk, cm, s, wm, accounts, contractManager, registry, vm, cfm, log.Named("rhp3"))
 	if err != nil {
 		return fmt.Errorf("failed to create rhp3 session handler: %w", err)
 	}
 	go rhp3.Serve()
 	defer rhp3.Close()
+
+	rhp4 := rhp4.NewServer(sk, cm, s, contractManager, wm, cfm, vm)
+	go rhp.ServeRHP4SiaMux(rhp4Listener, rhp4, log.Named("rhp4.siamux"))
 
 	ex := explorer.New("https://api.siascan.com")
 	pm, err := pin.NewManager(store, cfm, ex, pin.WithLogger(log.Named("pin")))
@@ -230,7 +248,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 
 	a := jape.BasicAuth("sia is cool")(api.NewServer("", sk.PublicKey(), cm, s, accounts, contractManager, vm, wm, store, cfm, index, api.WithAlerts(am),
 		api.WithLogger(log.Named("api")),
-		api.WithRHPSessionReporter(sr),
 		api.WithWebhooks(wr),
 		api.WithPinnedSettings(pm),
 		api.WithExplorer(ex)))
@@ -276,6 +293,10 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 
 	log.Debug("node setup complete")
+
+	if err := waitForSync(); err != nil {
+		return fmt.Errorf("failed to wait for sync: %w", err)
+	}
 
 	// mine blocks to fund the wallet
 	walletAddress := types.StandardUnlockHash(sk.PublicKey())
