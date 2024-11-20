@@ -255,7 +255,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	defer server.Close()
 	go server.Serve(httpListener)
 
-	log.Info("node started", zap.String("network", cm.TipState().Network.Name), zap.String("hostKey", sk.PublicKey().String()), zap.String("http", httpListener.Addr().String()), zap.String("p2p", string(s.Addr())), zap.String("rhp2", rhp2.LocalAddr()), zap.String("rhp3", rhp3.LocalAddr()))
 	node.APIAddress = "http://" + httpListener.Addr().String()
 	node.Password = "sia is cool"
 
@@ -297,6 +296,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to mine blocks: %w", err)
 	}
 
+	log.Info("node started", zap.String("network", cm.TipState().Network.Name), zap.String("hostKey", sk.PublicKey().String()), zap.String("http", httpListener.Addr().String()), zap.String("p2p", string(s.Addr())), zap.String("rhp2", rhp2.LocalAddr()), zap.String("rhp3", rhp3.LocalAddr()))
 	m.addNodeAndWait(ctx, node, ready)
 	return nil
 }
