@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -79,18 +80,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer syncerListener.Close()
 
-	rhp2Listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return fmt.Errorf("failed to listen on rhp2 addr: %w", err)
-	}
-	defer rhp2Listener.Close()
-
-	rhp3Listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return fmt.Errorf("failed to listen on rhp3 addr: %w", err)
-	}
-	defer rhp3Listener.Close()
-
 	var cm *chain.Manager
 	var s *syncer.Syncer
 
@@ -158,11 +147,37 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to create webhook reporter: %w", err)
 	}
 	defer wr.Close()
-	sr := rhp.NewSessionReporter()
 
 	am := alerts.NewManager(alerts.WithEventReporter(wr), alerts.WithLog(log.Named("alerts")))
 
-	cfm, err := settings.NewConfigManager(sk, store, cm, s, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")), settings.WithValidateNetAddress(false), settings.WithAnnounceInterval(144*30))
+	vm, err := storage.NewVolumeManager(store, storage.WithLogger(log.Named("volumes")), storage.WithAlerter(am))
+	if err != nil {
+		return fmt.Errorf("failed to create storage manager: %w", err)
+	}
+	defer vm.Close()
+
+	rhp2Listener, err := rhp.Listen("tcp", ":0")
+	if err != nil {
+		return fmt.Errorf("failed to listen on rhp2 addr: %w", err)
+	}
+	defer rhp2Listener.Close()
+
+	rhp3Listener, err := rhp.Listen("tcp", ":0")
+	if err != nil {
+		return fmt.Errorf("failed to listen on rhp3 addr: %w", err)
+	}
+	defer rhp3Listener.Close()
+
+	_, rhp3PortStr, err := net.SplitHostPort(rhp3Listener.Addr().String())
+	if err != nil {
+		return fmt.Errorf("failed to split rhp3 address: %w", err)
+	}
+	rhp3Port, err := strconv.ParseUint(rhp3PortStr, 10, 16)
+	if err != nil {
+		return fmt.Errorf("failed to parse rhp3 port: %w", err)
+	}
+
+	cfm, err := settings.NewConfigManager(sk, store, cm, s, vm, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")), settings.WithValidateNetAddress(false), settings.WithAnnounceInterval(144*30), settings.WithRHP3Port(uint16(rhp3Port)))
 	if err != nil {
 		return fmt.Errorf("failed to create settings manager: %w", err)
 	}
@@ -178,12 +193,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	if err := cfm.UpdateSettings(settings); err != nil {
 		return fmt.Errorf("failed to update settings: %w", err)
 	}
-
-	vm, err := storage.NewVolumeManager(store, storage.WithLogger(log.Named("volumes")), storage.WithAlerter(am))
-	if err != nil {
-		return fmt.Errorf("failed to create storage manager: %w", err)
-	}
-	defer vm.Close()
 
 	ch := make(chan error, 1)
 	if _, err := vm.AddVolume(ctx, filepath.Join(dir, "data.dat"), 256, ch); err != nil {
@@ -204,21 +213,13 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer index.Close()
 
-	dr := rhp.NewDataRecorder(store, log.Named("data"))
-
-	rhp2, err := rhp2.NewSessionHandler(rhp2Listener, sk, rhp3Listener.Addr().String(), cm, s, wm, contractManager, cfm, vm, rhp2.WithDataMonitor(dr), rhp2.WithLog(log.Named("rhp2")))
-	if err != nil {
-		return fmt.Errorf("failed to create rhp2 session handler: %w", err)
-	}
+	rhp2 := rhp2.NewSessionHandler(rhp2Listener, sk, cm, s, wm, contractManager, cfm, vm, log.Named("rhp2"))
 	go rhp2.Serve()
 	defer rhp2.Close()
 
 	registry := registry.NewManager(sk, store, log.Named("registry"))
 	accounts := accounts.NewManager(store, cfm)
-	rhp3, err := rhp3.NewSessionHandler(rhp3Listener, sk, cm, s, wm, accounts, contractManager, registry, vm, cfm, rhp3.WithDataMonitor(dr), rhp3.WithSessionReporter(sr), rhp3.WithLog(log.Named("rhp3")))
-	if err != nil {
-		return fmt.Errorf("failed to create rhp3 session handler: %w", err)
-	}
+	rhp3 := rhp3.NewSessionHandler(rhp3Listener, sk, cm, s, wm, accounts, contractManager, registry, vm, cfm, log.Named("rhp3"))
 	go rhp3.Serve()
 	defer rhp3.Close()
 
@@ -230,7 +231,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 
 	a := jape.BasicAuth("sia is cool")(api.NewServer("", sk.PublicKey(), cm, s, accounts, contractManager, vm, wm, store, cfm, index, api.WithAlerts(am),
 		api.WithLogger(log.Named("api")),
-		api.WithRHPSessionReporter(sr),
 		api.WithWebhooks(wr),
 		api.WithPinnedSettings(pm),
 		api.WithExplorer(ex)))
