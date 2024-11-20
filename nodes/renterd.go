@@ -273,7 +273,6 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	go ap.Run()
 	autopilotHandler = jape.BasicAuth("sia is cool")(ap.Handler())
 
-	log.Info("node started", zap.Stringer("http", apiListener.Addr()))
 	node.APIAddress = "http://" + apiListener.Addr().String()
 	node.Password = "sia is cool"
 
@@ -413,6 +412,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	if _, err := autopilotClient.Trigger(true); err != nil {
 		return fmt.Errorf("failed to trigger autopilot: %w", err)
 	}
+	log.Info("node started", zap.Stringer("http", apiListener.Addr()))
 	m.addNodeAndWait(ctx, node, ready)
 	return nil
 }
