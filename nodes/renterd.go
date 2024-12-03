@@ -126,7 +126,8 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 	defer db.Close()
 
-	dbMain, err := sqlite.NewMainDatabase(db, log.Named("sqlite"), time.Second, time.Second)
+	partialSlabDir := filepath.Join(dir, "partial_slabs")
+	dbMain, err := sqlite.NewMainDatabase(db, log.Named("sqlite"), time.Second, time.Second, partialSlabDir)
 	if err != nil {
 		return fmt.Errorf("failed to create SQLite database: %w", err)
 	}
@@ -147,7 +148,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		Alerts:                        alerts.WithOrigin(am, "bus"),
 		DB:                            dbMain,
 		DBMetrics:                     dbMetrics,
-		PartialSlabDir:                filepath.Join(dir, "partial_slabs"),
+		PartialSlabDir:                partialSlabDir,
 		Migrate:                       true,
 		SlabBufferCompletionThreshold: 1 << 12,
 		Logger:                        log.Named("store"),
@@ -258,7 +259,6 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 
 	ap, err := autopilot.New(config.Autopilot{
 		Heartbeat:                      time.Second,
-		ID:                             api.DefaultAutopilotID,
 		MigrationHealthCutoff:          0.99,
 		MigratorParallelSlabsPerWorker: 1,
 		RevisionSubmissionBuffer:       0,
@@ -276,9 +276,9 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	node.APIAddress = "http://" + apiListener.Addr().String()
 	node.Password = "sia is cool"
 
-	err = autopilotClient.UpdateConfig(api.AutopilotConfig{
-		Contracts: api.ContractsConfig{
-			Set:         "autopilot",
+	err = busClient.UpdateAutopilotConfig(ctx, func(req *api.UpdateAutopilotRequest) {
+		req.Enabled = &[]bool{true}[0]
+		req.Contracts = &api.ContractsConfig{
 			Amount:      1000,
 			Period:      4320,
 			RenewWindow: 144 * 7,
@@ -286,43 +286,12 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 			Upload:      1 << 30,
 			Storage:     1 << 30,
 			Prune:       false,
-		},
-		Hosts: api.HostsConfig{
-			AllowRedundantIPs:          true,
+		}
+		req.Hosts = &api.HostsConfig{
 			MaxDowntimeHours:           1440,
 			MinProtocolVersion:         "1.6.0",
 			MaxConsecutiveScanFailures: 100,
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update autopilot config: %w", err)
-	}
-
-	// Finish worker setup.
-	if err := w.Setup(ctx, node.APIAddress+"/api/worker", "sia is cool"); err != nil {
-		return fmt.Errorf("failed to setup worker: %w", err)
-	}
-
-	err = busClient.UpdateAutopilot(ctx, api.Autopilot{
-		ID: api.DefaultAutopilotID,
-		Config: api.AutopilotConfig{
-			Contracts: api.ContractsConfig{
-				Set:         "autopilot",
-				Amount:      1000,
-				Period:      4320,
-				RenewWindow: 144 * 7,
-				Download:    1 << 30,
-				Upload:      1 << 30,
-				Storage:     1 << 30,
-				Prune:       false,
-			},
-			Hosts: api.HostsConfig{
-				AllowRedundantIPs:          true,
-				MaxDowntimeHours:           1440,
-				MinProtocolVersion:         "1.6.0",
-				MaxConsecutiveScanFailures: 100,
-			},
-		},
+		}
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update autopilot: %w", err)
@@ -355,7 +324,6 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		return fmt.Errorf("failed to update setting: %w", err)
 	}
 	err = busClient.UpdateUploadSettings(ctx, api.UploadSettings{
-		DefaultContractSet: "autopilot",
 		Redundancy: api.RedundancySettings{
 			MinShards:   2,
 			TotalShards: 3,
