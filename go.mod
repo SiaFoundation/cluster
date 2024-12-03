@@ -7,9 +7,9 @@ toolchain go1.23.2
 require (
 	go.sia.tech/core v0.6.2
 	go.sia.tech/coreutils v0.7.0
-	go.sia.tech/hostd v1.1.3-0.20241120152107-d0a0432b7b8d
+	go.sia.tech/hostd v1.1.3-0.20241126153600-d590d9259987
 	go.sia.tech/jape v0.12.1
-	go.sia.tech/renterd v1.1.0-beta.5.0.20241120125340-50665c97fd5b
+	go.sia.tech/renterd v1.1.0-beta.5.0.20241203123141-50c650a896c2
 	go.sia.tech/walletd v0.8.1-0.20241120185708-2f26e9b843f1
 	go.uber.org/zap v1.27.0
 	lukechampine.com/frand v1.5.1
@@ -17,8 +17,8 @@ require (
 
 require (
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
-	github.com/cloudflare/cloudflare-go v0.109.0 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.6 // indirect
+	github.com/cloudflare/cloudflare-go v0.110.0 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.7 // indirect
 	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/gotd/contrib v0.20.0 // indirect
@@ -37,7 +37,7 @@ require (
 	go.sia.tech/mux v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.29.0 // indirect
-	golang.org/x/net v0.30.0 // indirect
+	golang.org/x/net v0.31.0 // indirect
 	golang.org/x/sys v0.27.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
