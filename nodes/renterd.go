@@ -287,6 +287,8 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 
 	ap, err := autopilot.New(config.Autopilot{
+		Enabled:                        true,
+		AllowRedundantHostIPs:          true,
 		Heartbeat:                      time.Second,
 		MigrationHealthCutoff:          0.99,
 		MigratorParallelSlabsPerWorker: 1,
@@ -306,7 +308,8 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	node.Password = "sia is cool"
 
 	err = busClient.UpdateAutopilotConfig(ctx, func(req *api.UpdateAutopilotRequest) {
-		req.Enabled = &[]bool{true}[0]
+		enabled := true
+		req.Enabled = &enabled
 		req.Contracts = &api.ContractsConfig{
 			Amount:      1000,
 			Period:      4320,
