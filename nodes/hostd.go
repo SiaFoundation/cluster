@@ -16,6 +16,7 @@ import (
 	"go.sia.tech/core/types"
 	"go.sia.tech/coreutils"
 	"go.sia.tech/coreutils/chain"
+	rhp4 "go.sia.tech/coreutils/rhp/v4"
 	"go.sia.tech/coreutils/syncer"
 	"go.sia.tech/coreutils/testutil"
 	"go.sia.tech/coreutils/wallet"
@@ -37,6 +38,18 @@ import (
 	"go.sia.tech/jape"
 	"go.uber.org/zap"
 )
+
+func parseListenerPort(addr string) (uint16, error) {
+	_, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return 0, fmt.Errorf("failed to split address: %w", err)
+	}
+	port, err := strconv.ParseUint(portStr, 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse port: %w", err)
+	}
+	return uint16(port), nil
+}
 
 // StartHostd starts a new hostd node. It listens on random ports and registers
 // itself with the Manager. This function blocks until the context is
@@ -114,10 +127,10 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		if err != nil {
 			return fmt.Errorf("failed to split syncer address: %w", err)
 		}
-		s = syncer.New(syncerListener, cm, testutil.NewMemPeerStore(), gateway.Header{
+		s = syncer.New(syncerListener, cm, testutil.NewEphemeralPeerStore(), gateway.Header{
 			GenesisID:  genesisIndex.ID,
 			UniqueID:   gateway.GenerateUniqueID(),
-			NetAddress: "127.0.0.1:" + port,
+			NetAddress: "127.0.0.1" + port,
 		}, syncer.WithLogger(log.Named("syncer")),
 			syncer.WithPeerDiscoveryInterval(5*time.Second),
 			syncer.WithSyncInterval(5*time.Second),
@@ -166,22 +179,39 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer rhp2Listener.Close()
 
+	rhp2Port, err := parseListenerPort(rhp2Listener.Addr().String())
+	if err != nil {
+		return fmt.Errorf("failed to parse rhp2 port: %w", err)
+	}
+
 	rhp3Listener, err := rhp.Listen("tcp", ":0")
 	if err != nil {
 		return fmt.Errorf("failed to listen on rhp3 addr: %w", err)
 	}
 	defer rhp3Listener.Close()
 
-	_, rhp3PortStr, err := net.SplitHostPort(rhp3Listener.Addr().String())
-	if err != nil {
-		return fmt.Errorf("failed to split rhp3 address: %w", err)
-	}
-	rhp3Port, err := strconv.ParseUint(rhp3PortStr, 10, 16)
+	rhp3Port, err := parseListenerPort(rhp3Listener.Addr().String())
 	if err != nil {
 		return fmt.Errorf("failed to parse rhp3 port: %w", err)
 	}
 
-	cfm, err := settings.NewConfigManager(sk, store, cm, s, vm, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")), settings.WithValidateNetAddress(false), settings.WithAnnounceInterval(144*30), settings.WithRHP3Port(uint16(rhp3Port)))
+	rhp4Listener, err := rhp.Listen("tcp", ":0")
+	if err != nil {
+		return fmt.Errorf("failed to listen on rhp4 addr: %w", err)
+	}
+	defer rhp4Listener.Close()
+
+	rhp4Port, err := parseListenerPort(rhp4Listener.Addr().String())
+	if err != nil {
+		return fmt.Errorf("failed to parse rhp4 port: %w", err)
+	}
+
+	cfm, err := settings.NewConfigManager(sk, store, cm, s, vm, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")),
+		settings.WithValidateNetAddress(false),
+		settings.WithAnnounceInterval(144*30),
+		settings.WithRHP2Port(rhp2Port),
+		settings.WithRHP3Port(rhp3Port),
+		settings.WithRHP4Port(rhp4Port))
 	if err != nil {
 		return fmt.Errorf("failed to create settings manager: %w", err)
 	}
@@ -193,7 +223,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	settings.StoragePrice = types.Siacoins(1).Div64(4320).Div64(1e9) // 1 SC / TB / Month
 	settings.CollateralMultiplier = 2
 	settings.MaxCollateral = types.Siacoins(100000)
-	settings.NetAddress = rhp2Listener.Addr().String()
+	settings.NetAddress = "localhost"
 	if err := cfm.UpdateSettings(settings); err != nil {
 		return fmt.Errorf("failed to update settings: %w", err)
 	}
@@ -226,6 +256,9 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	rhp3 := rhp3.NewSessionHandler(rhp3Listener, sk, cm, s, wm, accounts, contractManager, registry, vm, cfm, log.Named("rhp3"))
 	go rhp3.Serve()
 	defer rhp3.Close()
+
+	rhp4 := rhp4.NewServer(sk, cm, s, contractManager, wm, cfm, vm, rhp4.WithPriceTableValidity(10*time.Minute), rhp4.WithContractProofWindowBuffer(10))
+	go rhp.ServeRHP4SiaMux(rhp4Listener, rhp4, log.Named("rhp4"))
 
 	ex := explorer.New("https://api.siascan.com")
 	pm, err := pin.NewManager(store, cfm, ex, pin.WithLogger(log.Named("pin")))

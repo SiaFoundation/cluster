@@ -29,7 +29,7 @@ type (
 
 	// A Syncer can connect to other peers and synchronize the blockchain.
 	Syncer interface {
-		BroadcastHeader(bh gateway.BlockHeader)
+		BroadcastHeader(bh types.BlockHeader)
 		BroadcastTransactionSet(txns []types.Transaction)
 		BroadcastV2TransactionSet(index types.ChainIndex, txns []types.V2Transaction)
 		BroadcastV2BlockOutline(bo gateway.V2BlockOutline)

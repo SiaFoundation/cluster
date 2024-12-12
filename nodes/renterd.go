@@ -125,7 +125,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		if err != nil {
 			return fmt.Errorf("failed to split syncer address: %w", err)
 		}
-		s = syncer.New(syncerListener, cm, testutil.NewMemPeerStore(), gateway.Header{
+		s = syncer.New(syncerListener, cm, testutil.NewEphemeralPeerStore(), gateway.Header{
 			GenesisID:  genesisIndex.ID,
 			UniqueID:   gateway.GenerateUniqueID(),
 			NetAddress: "127.0.0.1:" + port,
@@ -338,9 +338,9 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 
 		HostBlockHeightLeeway: 240, // amount of leeway given to host block height
 
-		MinPriceTableValidity:         10 * time.Second,  // minimum value for price table validity
-		MinAccountExpiry:              time.Hour,         // minimum value for account expiry
-		MinMaxEphemeralAccountBalance: types.Siacoins(1), // 1SC
+		MinPriceTableValidity:         api.DurationMS(10 * time.Second), // minimum value for price table validity
+		MinAccountExpiry:              api.DurationMS(time.Hour),        // minimum value for account expiry
+		MinMaxEphemeralAccountBalance: types.Siacoins(1),                // 1SC
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update setting: %w", err)
