@@ -105,7 +105,7 @@ func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) (err 
 		if err != nil {
 			return fmt.Errorf("failed to split syncer address: %w", err)
 		}
-		s = syncer.New(syncerListener, cm, testutil.NewMemPeerStore(), gateway.Header{
+		s = syncer.New(syncerListener, cm, testutil.NewEphemeralPeerStore(), gateway.Header{
 			GenesisID:  genesisIndex.ID,
 			UniqueID:   gateway.GenerateUniqueID(),
 			NetAddress: "127.0.0.1:" + port,

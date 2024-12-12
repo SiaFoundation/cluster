@@ -202,12 +202,7 @@ func (m *Manager) MineBlocks(ctx context.Context, n int, rewardAddress types.Add
 		}
 
 		if b.V2 == nil {
-			m.syncer.BroadcastHeader(gateway.BlockHeader{
-				ParentID:   b.ParentID,
-				Nonce:      b.Nonce,
-				Timestamp:  b.Timestamp,
-				MerkleRoot: b.MerkleRoot(),
-			})
+			m.syncer.BroadcastHeader(b.Header())
 		} else {
 			m.syncer.BroadcastV2BlockOutline(gateway.OutlineBlock(b, m.chain.PoolTransactions(), m.chain.V2PoolTransactions()))
 		}
