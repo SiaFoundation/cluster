@@ -5,12 +5,12 @@ go 1.23.1
 toolchain go1.23.2
 
 require (
-	go.sia.tech/core v0.7.2-0.20241210224920-0534a5928ddb
-	go.sia.tech/coreutils v0.7.1-0.20241211045514-6881993d8806
-	go.sia.tech/hostd v1.1.3-0.20241212215223-9e3440475bed
+	go.sia.tech/core v0.9.0
+	go.sia.tech/coreutils v0.8.1-0.20241218181949-43f6ab81acde
+	go.sia.tech/hostd v1.1.3-0.20241218083322-ae9c8a971fe0
 	go.sia.tech/jape v0.12.1
-	go.sia.tech/renterd v1.1.1-0.20241212160145-9b05f245be23
-	go.sia.tech/walletd v0.8.1-0.20241210081245-ca3d83da2781
+	go.sia.tech/renterd v1.1.1-0.20241218130411-9780497f1861
+	go.sia.tech/walletd v0.8.1-0.20241217084958-e4f5880d4d06
 	go.uber.org/zap v1.27.0
 	lukechampine.com/frand v1.5.1
 )
