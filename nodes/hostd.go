@@ -235,7 +235,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to add volume: %w", err)
 	}
 
-	contractManager, err := contracts.NewManager(store, vm, cm, s, wm, contracts.WithLog(log.Named("contracts")), contracts.WithAlerter(am))
+	contractManager, err := contracts.NewManager(store, vm, cm, s, wm, contracts.WithLog(log.Named("contracts")), contracts.WithAlerter(am), contracts.WithRevisionSubmissionBuffer(10))
 	if err != nil {
 		return fmt.Errorf("failed to create contracts manager: %w", err)
 	}
@@ -257,7 +257,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	go rhp3.Serve()
 	defer rhp3.Close()
 
-	rhp4 := rhp4.NewServer(sk, cm, s, contractManager, wm, cfm, vm, rhp4.WithPriceTableValidity(10*time.Minute), rhp4.WithContractProofWindowBuffer(10))
+	rhp4 := rhp4.NewServer(sk, cm, s, contractManager, wm, cfm, vm, rhp4.WithPriceTableValidity(10*time.Minute))
 	go rhp.ServeRHP4SiaMux(rhp4Listener, rhp4, log.Named("rhp4"))
 
 	ex := explorer.New("https://api.siascan.com")
