@@ -35,6 +35,16 @@ type spoofedSyncer struct {
 	*syncer.Syncer
 }
 
+func (s *spoofedSyncer) Addr() string {
+	return ""
+}
+
+func (s *spoofedSyncer) BroadcastHeader(h types.BlockHeader)               {}
+func (s *spoofedSyncer) BroadcastV2BlockOutline(bo gateway.V2BlockOutline) {}
+func (s *spoofedSyncer) BroadcastTransactionSet([]types.Transaction)       {}
+func (s *spoofedSyncer) BroadcastV2TransactionSet(index types.ChainIndex, txns []types.V2Transaction) {
+}
+
 func (s *spoofedSyncer) Connect(ctx context.Context, addr string) (*syncer.Peer, error) {
 	return new(syncer.Peer), nil
 }
