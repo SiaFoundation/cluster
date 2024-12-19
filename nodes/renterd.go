@@ -276,6 +276,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		BusFlushInterval:         100 * time.Millisecond,
 		DownloadOverdriveTimeout: 500 * time.Millisecond,
 		UploadOverdriveTimeout:   500 * time.Millisecond,
+		CacheExpiry:              5 * time.Minute,
 		DownloadMaxMemory:        1 << 28, // 256 MiB
 		UploadMaxMemory:          1 << 28, // 256 MiB
 		UploadMaxOverdrive:       5,
@@ -297,15 +298,16 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 
 	ap, err := autopilot.New(config.Autopilot{
-		Enabled:                  true,
-		AllowRedundantHostIPs:    true,
-		Heartbeat:                time.Second,
-		MigratorHealthCutoff:     0.99,
-		MigratorNumThreads:       1,
-		RevisionSubmissionBuffer: 0,
-		ScannerInterval:          15 * time.Second,
-		ScannerBatchSize:         10,
-		ScannerNumThreads:        1,
+		Enabled:                        true,
+		AllowRedundantHostIPs:          true,
+		Heartbeat:                      time.Second,
+		MigratorHealthCutoff:           0.99,
+		MigratorNumThreads:             1,
+		RevisionSubmissionBuffer:       0,
+		MigratorAccountsRefillInterval: 10 * time.Second,
+		ScannerInterval:                15 * time.Second,
+		ScannerBatchSize:               10,
+		ScannerNumThreads:              1,
 	}, ([32]byte)(sk[:32]), busClient, log.Named("autopilot"))
 	if err != nil {
 		return fmt.Errorf("failed to create autopilot: %w", err)
