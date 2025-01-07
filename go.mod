@@ -1,4 +1,4 @@
-module go.sia.tech/cluster
+module go.sia.tech/cluster // v0.1.3
 
 go 1.23.1
 
