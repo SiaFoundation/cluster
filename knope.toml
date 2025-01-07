@@ -40,15 +40,14 @@ template = "chore: prepare release $version"
 variables = { "$version" = "Version" }
 
 [workflows.steps.body]
-template = "This PR was created automatically. Merging it will finalize the changelog for $version\n\n$changelog"
+template = "This PR was created automatically. Merging it will create a new release for $version\n\n$changelog"
 variables = { "$changelog" = "ChangelogEntry", "$version" = "Version" }
 
-# Do not enable releases, just changelogs for now.
-# [[workflows]]
-# name = "release"
-#
-# [[workflows.steps]]
-# type = "Release"
+[[workflows]]
+name = "release"
+
+[[workflows.steps]]
+type = "Release"
 
 [github]
 owner = "SiaFoundation"
