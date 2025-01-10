@@ -22,6 +22,11 @@ import (
 	"go.sia.tech/renterd/alerts"
 	"go.sia.tech/renterd/api"
 	"go.sia.tech/renterd/autopilot"
+	"go.sia.tech/renterd/autopilot/contractor"
+	"go.sia.tech/renterd/autopilot/migrator"
+	"go.sia.tech/renterd/autopilot/pruner"
+	"go.sia.tech/renterd/autopilot/scanner"
+	"go.sia.tech/renterd/autopilot/walletmaintainer"
 	"go.sia.tech/renterd/bus"
 	"go.sia.tech/renterd/config"
 	"go.sia.tech/renterd/stores"
@@ -297,7 +302,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		panic(err)
 	}
 
-	ap, err := autopilot.New(config.Autopilot{
+	ap, err := newAutopilot(([32]byte)(sk[:32]), config.Autopilot{
 		Enabled:                        true,
 		AllowRedundantHostIPs:          true,
 		Heartbeat:                      time.Second,
@@ -308,7 +313,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		ScannerInterval:                15 * time.Second,
 		ScannerBatchSize:               10,
 		ScannerNumThreads:              1,
-	}, ([32]byte)(sk[:32]), busClient, log.Named("autopilot"))
+	}, busClient, log.Named("autopilot"))
 	if err != nil {
 		return fmt.Errorf("failed to create autopilot: %w", err)
 	}
@@ -433,4 +438,28 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	log.Info("node started", zap.Stringer("http", apiListener.Addr()))
 	m.addNodeAndWait(ctx, node, ready)
 	return nil
+}
+
+func newAutopilot(masterKey [32]byte, cfg config.Autopilot, bus *bus.Client, l *zap.Logger) (*autopilot.Autopilot, error) {
+	a := alerts.WithOrigin(bus, "autopilot")
+	l = l.Named("autopilot")
+
+	ctx, cancel := context.WithCancelCause(context.Background())
+	m, err := migrator.New(ctx, masterKey, a, bus, bus, cfg.MigratorHealthCutoff, cfg.MigratorNumThreads, cfg.MigratorDownloadMaxOverdrive, cfg.MigratorUploadMaxOverdrive, cfg.MigratorDownloadOverdriveTimeout, cfg.MigratorUploadOverdriveTimeout, cfg.MigratorAccountsRefillInterval, l)
+	if err != nil {
+		cancel(nil)
+		return nil, err
+	}
+
+	s, err := scanner.New(bus, cfg.ScannerBatchSize, cfg.ScannerNumThreads, cfg.ScannerInterval, l)
+	if err != nil {
+		cancel(nil)
+		return nil, err
+	}
+
+	c := contractor.New(bus, bus, bus, bus, bus, cfg.RevisionSubmissionBuffer, cfg.RevisionBroadcastInterval, cfg.AllowRedundantHostIPs, l)
+	p := pruner.New(a, bus, l)
+	w := walletmaintainer.New(a, bus, l)
+
+	return autopilot.New(ctx, cancel, bus, c, m, p, s, w, cfg.Heartbeat, l), nil
 }
