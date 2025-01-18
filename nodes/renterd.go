@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"go.sia.tech/core/gateway"
@@ -18,7 +17,6 @@ import (
 	"go.sia.tech/coreutils/syncer"
 	"go.sia.tech/coreutils/testutil"
 	"go.sia.tech/coreutils/wallet"
-	"go.sia.tech/jape"
 	"go.sia.tech/renterd/alerts"
 	"go.sia.tech/renterd/api"
 	"go.sia.tech/renterd/autopilot"
@@ -85,6 +83,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		ID:            NodeID(pk[:]),
 		Type:          NodeTypeRenterd,
 		WalletAddress: types.StandardUnlockHash(pk),
+		Password:      "sia is cool",
 	}
 	log := m.log.Named("renterd." + node.ID.String())
 
@@ -208,35 +207,17 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 
 	am.RegisterWebhookBroadcaster(wh)
 
-	var workerHandler, busHandler, autopilotHandler http.Handler
+	mux := &api.TreeMux{Sub: make(map[string]api.TreeMux)}
 	server := &http.Server{
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "*")
-			w.Header().Set("Access-Control-Expose-Headers", "*")
-			if r.Method == http.MethodOptions {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			} else if strings.HasPrefix(r.URL.Path, "/api/worker") {
-				r.URL.Path = strings.TrimPrefix(r.URL.Path, "/api/worker")
-				workerHandler.ServeHTTP(w, r)
-				return
-			} else if strings.HasPrefix(r.URL.Path, "/api/bus") {
-				r.URL.Path = strings.TrimPrefix(r.URL.Path, "/api/bus")
-				busHandler.ServeHTTP(w, r)
-				return
-			} else if strings.HasPrefix(r.URL.Path, "/api/autopilot") {
-				r.URL.Path = strings.TrimPrefix(r.URL.Path, "/api/autopilot")
-				autopilotHandler.ServeHTTP(w, r)
-				return
-			}
-			http.NotFound(w, r)
-		}),
+		Handler:     mux,
 		ReadTimeout: 15 * time.Second,
 	}
 	defer server.Close()
 	go server.Serve(apiListener)
+
+	// setup auth
+	auth := api.Auth(node.Password)
+	mux.Sub["/api/auth"] = api.TreeMux{Handler: api.AuthHandler(node.Password)}
 
 	wm, err := wallet.NewSingleAddressWallet(sk, cm, store)
 	if err != nil {
@@ -268,7 +249,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 			log.Error("failed to shutdown bus", zap.Error(err))
 		}
 	}()
-	busHandler = jape.BasicAuth("sia is cool")(b.Handler())
+	mux.Sub["/api/bus"] = api.TreeMux{Handler: auth(b.Handler())}
 
 	apiAddr := apiListener.Addr().String()
 	busClient := bus.NewClient(fmt.Sprintf("http://%s/api/bus", apiAddr), "sia is cool")
@@ -297,7 +278,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 			log.Error("failed to shutdown worker", zap.Error(err))
 		}
 	}()
-	workerHandler = jape.BasicAuth("sia is cool")(w.Handler())
+	mux.Sub["/api/worker"] = api.TreeMux{Handler: auth(w.Handler())}
 	if _, err := workerClient.Account(context.Background(), types.PublicKey{}); err != nil {
 		panic(err)
 	}
@@ -319,10 +300,9 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 	defer ap.Shutdown(ctx)
 	go ap.Run()
-	autopilotHandler = jape.BasicAuth("sia is cool")(ap.Handler())
+	mux.Sub["/api/autopilot"] = api.TreeMux{Handler: auth(ap.Handler())}
 
 	node.APIAddress = "http://" + apiListener.Addr().String()
-	node.Password = "sia is cool"
 
 	err = busClient.UpdateAutopilotConfig(ctx, func(req *api.UpdateAutopilotRequest) {
 		enabled := true
