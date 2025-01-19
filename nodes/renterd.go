@@ -209,7 +209,17 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 
 	mux := &api.TreeMux{Sub: make(map[string]api.TreeMux)}
 	server := &http.Server{
-		Handler:     mux,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "*")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.Header().Set("Access-Control-Expose-Headers", "*")
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			mux.ServeHTTP(w, r)
+		}),
 		ReadTimeout: 15 * time.Second,
 	}
 	defer server.Close()
