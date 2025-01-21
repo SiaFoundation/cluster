@@ -213,6 +213,27 @@ func (m *Manager) MineBlocks(ctx context.Context, n int, rewardAddress types.Add
 	return nil
 }
 
+// MineBlocksToHeight mines blocks until the target height is reached.
+func (m *Manager) MineBlocksToHeight(ctx context.Context, targetHeight uint64, rewardAddress types.Address) error {
+	log := m.log.Named("mineToHeight")
+	currentHeight := m.chain.Tip().Height
+
+	log.Debug("mining to height",
+		zap.Uint64("currentHeight", currentHeight),
+		zap.Uint64("targetHeight", targetHeight))
+
+	for currentHeight < targetHeight {
+		if err := m.MineBlocks(ctx, 1, rewardAddress); err != nil {
+			return fmt.Errorf("failed to mine to height %v: %w", targetHeight, err)
+		}
+		currentHeight = m.chain.Tip().Height
+	}
+
+	log.Debug("finished mining to height",
+		zap.Uint64("height", currentHeight))
+	return nil
+}
+
 func createNodeDir(baseDir string, id NodeID) (dir string, err error) {
 	dir = filepath.Join(baseDir, id.String())
 	if err := os.MkdirAll(dir, 0700); err != nil {

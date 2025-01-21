@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -40,6 +41,7 @@ type (
 		Nodes() []nodes.Node
 
 		MineBlocks(ctx context.Context, n int, rewardAddress types.Address) error
+		MineBlocksToHeight(ctx context.Context, targetHeight uint64, rewardAddress types.Address) error
 		ProxyRequest(ctx context.Context, filter, httpMethod, path string, r io.Reader) ([]nodes.ProxyResponse, error)
 	}
 
@@ -61,6 +63,21 @@ func (srv *server) postMine(jc jape.Context) {
 		return
 	}
 	jc.Check("failed to mine", srv.nodes.MineBlocks(jc.Request.Context(), req.Blocks, req.Address))
+}
+
+func (srv *server) postMineTo(jc jape.Context) {
+	var req MineToRequest
+	if err := jc.Decode(&req); err != nil {
+		return
+	}
+
+	currentTip := srv.chain.Tip()
+	if req.TargetHeight <= currentTip.Height {
+		jc.Error(fmt.Errorf("target height %v is not greater than current height %v", req.TargetHeight, currentTip.Height), http.StatusBadRequest)
+		return
+	}
+
+	jc.Check("failed to mine to height", srv.nodes.MineBlocksToHeight(jc.Request.Context(), req.TargetHeight, req.Address))
 }
 
 func (srv *server) proxyNodeAPI(jc jape.Context) {
@@ -101,6 +118,13 @@ func (srv *server) proxyNodeAPI(jc jape.Context) {
 	}
 }
 
+func (srv *server) getHeight(jc jape.Context) {
+	tip := srv.chain.Tip()
+	jc.Encode(HeightResponse{
+		Height: tip.Height,
+	})
+}
+
 // Handler returns an http.Handler that serves the API.
 func Handler(cm ChainManager, s Syncer, n Nodes, log *zap.Logger) http.Handler {
 	srv := &server{
@@ -120,6 +144,9 @@ func Handler(cm ChainManager, s Syncer, n Nodes, log *zap.Logger) http.Handler {
 		"PATCH /nodes/proxy/:id/*path":  srv.proxyNodeAPI,
 		"DELETE /nodes/proxy/:id/*path": srv.proxyNodeAPI,
 
-		"POST /mine": srv.postMine,
+		"POST /mine/to": srv.postMineTo,
+		"POST /mine":    srv.postMine,
+
+		"GET /height": srv.getHeight,
 	})
 }

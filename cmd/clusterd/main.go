@@ -123,6 +123,9 @@ func main() {
 	case "v2":
 		n.HardforkV2.AllowHeight = 2
 		n.HardforkV2.RequireHeight = 3
+	case "transition":
+		n.HardforkV2.AllowHeight = 200 // attainable and after 144
+		n.HardforkV2.RequireHeight = 300
 	default:
 		log.Fatal("invalid network", zap.String("network", network))
 	}
