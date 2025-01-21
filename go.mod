@@ -5,18 +5,18 @@ go 1.23.1
 toolchain go1.23.2
 
 require (
-	go.sia.tech/core v0.9.0
-	go.sia.tech/coreutils v0.10.0
+	go.sia.tech/core v0.9.1
+	go.sia.tech/coreutils v0.10.1
 	go.sia.tech/hostd v1.1.3-0.20250117061650-943b1da7f33a
 	go.sia.tech/jape v0.12.1
-	go.sia.tech/renterd v1.1.2-0.20250118205343-039391b4d5e1
+	go.sia.tech/renterd v1.1.2-0.20250121143232-6ac3edab4f21
 	go.sia.tech/walletd v0.9.0-beta.1.0.20250116183850-24b3faed5183
 	go.uber.org/zap v1.27.0
 	lukechampine.com/frand v1.5.1
 )
 
 require (
-	github.com/aws/aws-sdk-go v1.55.5 // indirect
+	github.com/aws/aws-sdk-go v1.55.6 // indirect
 	github.com/cloudflare/cloudflare-go v0.113.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/goccy/go-json v0.10.4 // indirect

@@ -226,8 +226,9 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	go server.Serve(apiListener)
 
 	// setup auth
-	auth := api.Auth(node.Password)
-	mux.Sub["/api/auth"] = api.TreeMux{Handler: api.AuthHandler(node.Password)}
+	tokens := api.NewTokenStore()
+	auth := api.Auth(tokens, node.Password)
+	mux.Sub["/api/auth"] = api.TreeMux{Handler: api.AuthHandler(tokens, node.Password)}
 
 	wm, err := wallet.NewSingleAddressWallet(sk, cm, store)
 	if err != nil {
