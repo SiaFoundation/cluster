@@ -137,7 +137,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 			syncer.WithMaxInboundPeers(10000),
 			syncer.WithMaxOutboundPeers(10000))
 		defer s.Close()
-		go s.Run(ctx)
+		go s.Run()
 
 		node.SyncerAddress = syncerListener.Addr().String()
 		// connect to the cluster syncer

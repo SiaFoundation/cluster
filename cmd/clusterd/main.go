@@ -164,7 +164,7 @@ func main() {
 		log.Panic("failed to create syncer", zap.Error(err))
 	}
 	defer s.Close()
-	go s.Run(ctx)
+	go s.Run()
 
 	nm := nodes.NewManager(dir, cm, s, nodes.WithLog(log.Named("cluster")), nodes.WithSharedConsensus(true))
 	defer nm.Close()

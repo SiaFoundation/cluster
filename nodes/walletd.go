@@ -115,7 +115,7 @@ func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) (err 
 			syncer.WithMaxInboundPeers(10000),
 			syncer.WithMaxOutboundPeers(10000))
 		defer s.Close()
-		go s.Run(ctx)
+		go s.Run()
 
 		node.SyncerAddress = syncerListener.Addr().String()
 		// connect to the cluster syncer
