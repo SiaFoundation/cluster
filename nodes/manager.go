@@ -18,9 +18,10 @@ import (
 
 // Types for the supported nodes.
 const (
-	NodeTypeRenterd = NodeType("renterd")
-	NodeTypeHostd   = NodeType("hostd")
-	NodeTypeWalletd = NodeType("walletd")
+	NodeTypeRenterd  = NodeType("renterd")
+	NodeTypeHostd    = NodeType("hostd")
+	NodeTypeWalletd  = NodeType("walletd")
+	NodeTypeExplored = NodeType("explored")
 )
 
 type (
