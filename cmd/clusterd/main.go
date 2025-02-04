@@ -32,9 +32,10 @@ func main() {
 
 		siafundAddr string
 
-		renterdCount int
-		hostdCount   int
-		walletdCount int
+		renterdCount  int
+		hostdCount    int
+		walletdCount  int
+		exploredCount int
 	)
 
 	flag.StringVar(&dir, "dir", "", "directory to store renter data")
@@ -46,6 +47,7 @@ func main() {
 	flag.IntVar(&renterdCount, "renterd", 0, "number of renter daemons to run")
 	flag.IntVar(&hostdCount, "hostd", 0, "number of host daemons to run")
 	flag.IntVar(&walletdCount, "walletd", 0, "number of wallet daemons to run")
+	flag.IntVar(&exploredCount, "explored", 0, "number of explorer daemons to run")
 	flag.Parse()
 
 	cfg := zap.NewProductionEncoderConfig()
@@ -58,17 +60,8 @@ func main() {
 	cfg.CallerKey = ""
 	encoder := zapcore.NewConsoleEncoder(cfg)
 
-	var level zap.AtomicLevel
-	switch logLevel {
-	case "debug":
-		level = zap.NewAtomicLevelAt(zap.DebugLevel)
-	case "info":
-		level = zap.NewAtomicLevelAt(zap.InfoLevel)
-	case "warn":
-		level = zap.NewAtomicLevelAt(zap.WarnLevel)
-	case "error":
-		level = zap.NewAtomicLevelAt(zap.ErrorLevel)
-	default:
+	level, err := zap.ParseAtomicLevel(logLevel)
+	if err != nil {
 		fmt.Printf("invalid log level %q", level)
 		os.Exit(1)
 	}
@@ -85,7 +78,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	dir, err := os.MkdirTemp(dir, "sia-cluster-*")
+	dir, err = os.MkdirTemp(dir, "sia-cluster-*")
 	if err != nil {
 		log.Panic("failed to create temp dir", zap.Error(err))
 	}
@@ -210,6 +203,21 @@ func main() {
 		ready := make(chan struct{}, 1)
 		go func() {
 			if err := nm.StartWalletd(ctx, ready); err != nil {
+				cancel()
+				log.Error("walletd failed to start", zap.Error(err))
+			}
+		}()
+		select {
+		case <-ctx.Done():
+			log.Panic("context canceled")
+		case <-ready:
+		}
+	}
+
+	for i := 0; i < exploredCount; i++ {
+		ready := make(chan struct{}, 1)
+		go func() {
+			if err := nm.StartExplored(ctx, ready); err != nil {
 				cancel()
 				log.Error("walletd failed to start", zap.Error(err))
 			}
