@@ -155,6 +155,14 @@ func (m *Manager) StartExplored(ctx context.Context, ready chan<- struct{}) (err
 	server := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasPrefix(r.URL.Path, "/api") {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+				w.Header().Set("Access-Control-Allow-Methods", "*")
+				w.Header().Set("Access-Control-Allow-Headers", "*")
+				w.Header().Set("Access-Control-Expose-Headers", "*")
+				if r.Method == http.MethodOptions {
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
 				r.URL.Path = strings.TrimPrefix(r.URL.Path, "/api")
 				api.ServeHTTP(w, r)
 				return
