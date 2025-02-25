@@ -17,6 +17,7 @@ import (
 	"go.sia.tech/coreutils"
 	"go.sia.tech/coreutils/chain"
 	rhp4 "go.sia.tech/coreutils/rhp/v4"
+	"go.sia.tech/coreutils/rhp/v4/siamux"
 	"go.sia.tech/coreutils/syncer"
 	"go.sia.tech/coreutils/testutil"
 	"go.sia.tech/coreutils/wallet"
@@ -258,7 +259,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	defer rhp3.Close()
 
 	rhp4 := rhp4.NewServer(sk, cm, s, contractManager, wm, cfm, vm, rhp4.WithPriceTableValidity(10*time.Minute))
-	go rhp.ServeRHP4SiaMux(rhp4Listener, rhp4, log.Named("rhp4"))
+	go siamux.Serve(rhp4Listener, rhp4, log.Named("rhp4"))
 
 	ex := explorer.New("https://api.siascan.com")
 	pm, err := pin.NewManager(store, cfm, ex, pin.WithLogger(log.Named("pin")))
