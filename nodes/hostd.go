@@ -17,12 +17,14 @@ import (
 	"go.sia.tech/coreutils"
 	"go.sia.tech/coreutils/chain"
 	rhp4 "go.sia.tech/coreutils/rhp/v4"
+	"go.sia.tech/coreutils/rhp/v4/quic"
 	"go.sia.tech/coreutils/rhp/v4/siamux"
 	"go.sia.tech/coreutils/syncer"
 	"go.sia.tech/coreutils/testutil"
 	"go.sia.tech/coreutils/wallet"
 	"go.sia.tech/hostd/alerts"
 	"go.sia.tech/hostd/api"
+	"go.sia.tech/hostd/certificates"
 	"go.sia.tech/hostd/explorer"
 	"go.sia.tech/hostd/host/accounts"
 	"go.sia.tech/hostd/host/contracts"
@@ -207,6 +209,29 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to parse rhp4 port: %w", err)
 	}
 
+	rhp4UDPAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort("localhost", strconv.Itoa(int(rhp4Port))))
+	if err != nil {
+		return fmt.Errorf("failed to resolve udp address: %w", err)
+	}
+
+	rhp4UDPListener, err := net.ListenUDP("udp", rhp4UDPAddr)
+	if err != nil {
+		return fmt.Errorf("failed to listen on udp addr: %w", err)
+	}
+	defer rhp4UDPListener.Close()
+
+	certs, err := certificates.NewManager(dir, sk)
+	if err != nil {
+		return fmt.Errorf("failed to create certificates manager: %w", err)
+	}
+	defer certs.Close()
+
+	rhp4QUICListener, err := quic.Listen(rhp4UDPListener, certs)
+	if err != nil {
+		return fmt.Errorf("failed to listen on quic addr: %w", err)
+	}
+	defer rhp4QUICListener.Close()
+
 	cfm, err := settings.NewConfigManager(sk, store, cm, s, vm, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")),
 		settings.WithValidateNetAddress(false),
 		settings.WithAnnounceInterval(144*30),
@@ -259,7 +284,8 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	defer rhp3.Close()
 
 	rhp4 := rhp4.NewServer(sk, cm, s, contractManager, wm, cfm, vm, rhp4.WithPriceTableValidity(10*time.Minute))
-	go siamux.Serve(rhp4Listener, rhp4, log.Named("rhp4"))
+	go siamux.Serve(rhp4Listener, rhp4, log.Named("rhp4.siamux"))
+	go quic.Serve(rhp4QUICListener, rhp4, log.Named("rhp4.quic"))
 
 	ex := explorer.New("https://api.siascan.com")
 	pm, err := pin.NewManager(store, cfm, ex, pin.WithLogger(log.Named("pin")))
@@ -334,7 +360,13 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to mine blocks: %w", err)
 	}
 
-	log.Info("node started", zap.String("network", cm.TipState().Network.Name), zap.String("hostKey", sk.PublicKey().String()), zap.String("http", httpListener.Addr().String()), zap.String("p2p", string(s.Addr())), zap.String("rhp2", rhp2.LocalAddr()), zap.String("rhp3", rhp3.LocalAddr()))
+	log.Info("node started", zap.String("network", cm.TipState().Network.Name), zap.String("hostKey", sk.PublicKey().String()),
+		zap.String("http", httpListener.Addr().String()),
+		zap.String("p2p", string(s.Addr())),
+		zap.String("rhp2", rhp2.LocalAddr()),
+		zap.String("rhp3", rhp3.LocalAddr()),
+		zap.String("rhp4", rhp4Listener.Addr().String()),
+		zap.String("quic", rhp4QUICListener.Addr().String()))
 	m.addNodeAndWait(ctx, node, ready)
 	return nil
 }
