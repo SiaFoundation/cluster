@@ -209,7 +209,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to parse rhp4 port: %w", err)
 	}
 
-	rhp4UDPAddr, err := net.ResolveUDPAddr("udp", "localhost:0")
+	rhp4UDPAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort("localhost", strconv.Itoa(int(rhp4Port))))
 	if err != nil {
 		return fmt.Errorf("failed to resolve udp address: %w", err)
 	}
