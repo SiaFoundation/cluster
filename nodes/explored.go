@@ -126,7 +126,8 @@ func (m *Manager) StartExplored(ctx context.Context, ready chan<- struct{}) (err
 	defer store.Close()
 
 	e, err := explorer.NewExplorer(cm, store, 10, config.Scanner{
-		Threads:             4,
+		BatchSize:           4,
+		CheckAgainDelay:     1 * time.Second,
 		Timeout:             10 * time.Second,
 		MaxLastScan:         5 * time.Minute,
 		MinLastAnnouncement: 365 * 24 * time.Hour,
