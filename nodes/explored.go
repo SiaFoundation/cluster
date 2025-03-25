@@ -125,11 +125,11 @@ func (m *Manager) StartExplored(ctx context.Context, ready chan<- struct{}) (err
 	}
 	defer store.Close()
 
-	e, err := explorer.NewExplorer(cm, store, 10, config.Scanner{
-		BatchSize:           4,
-		CheckAgainDelay:     1 * time.Second,
-		Timeout:             10 * time.Second,
-		MaxLastScan:         5 * time.Minute,
+	e, err := explorer.NewExplorer(cm, store, config.Index{BatchSize: 10}, config.Scanner{
+		NumThreads:          4,
+		ScanTimeout:         10 * time.Second,
+		ScanFrequency:       1 * time.Second,
+		ScanInterval:        5 * time.Minute,
 		MinLastAnnouncement: 365 * 24 * time.Hour,
 	}, log.Named("explorer"))
 	if err != nil {
