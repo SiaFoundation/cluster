@@ -25,10 +25,11 @@ import (
 
 func main() {
 	var (
-		dir      string
-		apiAddr  string
-		logLevel string
-		network  string
+		dir         string
+		apiAddr     string
+		apiPassword string
+		logLevel    string
+		network     string
 
 		siafundAddr string
 
@@ -40,6 +41,7 @@ func main() {
 
 	flag.StringVar(&dir, "dir", "", "directory to store renter data")
 	flag.StringVar(&apiAddr, "api", ":3001", "API address")
+	flag.StringVar(&apiAddr, "api.password", "", "API password")
 	flag.StringVar(&logLevel, "log", "info", "logging level")
 	flag.StringVar(&network, "network", "v1", "network to use (v1 or v2)")
 	flag.StringVar(&siafundAddr, "siafund", "", "address to send siafunds to")
@@ -217,7 +219,7 @@ func main() {
 	for i := 0; i < exploredCount; i++ {
 		ready := make(chan struct{}, 1)
 		go func() {
-			if err := nm.StartExplored(ctx, ready); err != nil {
+			if err := nm.StartExplored(ctx, ready, apiPassword); err != nil {
 				cancel()
 				log.Error("walletd failed to start", zap.Error(err))
 			}

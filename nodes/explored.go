@@ -28,7 +28,7 @@ import (
 // StartExplored starts a new explored node. It listens on random ports and registers
 // itself with the Manager. This function blocks until the context is
 // canceled. All restources will be cleaned up before the funcion returns.
-func (m *Manager) StartExplored(ctx context.Context, ready chan<- struct{}) (err error) {
+func (m *Manager) StartExplored(ctx context.Context, ready chan<- struct{}, apiPassword string) (err error) {
 	defer func() {
 		if r := recover(); r != nil && err == nil {
 			err = fmt.Errorf("panic: %v", r)
@@ -152,7 +152,7 @@ func (m *Manager) StartExplored(ctx context.Context, ready chan<- struct{}) (err
 	}
 	go ex.Start(ctx)
 
-	api := api.NewServer(e, cm, s, ex)
+	api := api.NewServer(e, cm, s, ex, apiPassword)
 	server := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasPrefix(r.URL.Path, "/api") {
