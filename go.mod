@@ -7,7 +7,7 @@ toolchain go1.23.2
 require (
 	go.sia.tech/core v0.10.5-0.20250320183438-fbd9976fa9ca
 	go.sia.tech/coreutils v0.12.2-0.20250317235740-9e6e9fe76b2e
-	go.sia.tech/explored v0.0.0-20250325082605-43748737ab0a
+	go.sia.tech/explored v0.0.0-20250402140502-e41e9df249fb
 	go.sia.tech/hostd/v2 v2.1.0-beta.2.0.20250313081452-86d4e34d782f
 	go.sia.tech/jape v0.12.1
 	go.sia.tech/renterd/v2 v2.0.2-0.20250312081818-65ef6bdb87ec
