@@ -121,7 +121,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 			return fmt.Errorf("failed to open bolt db: %w", err)
 		}
 		defer bdb.Close()
-		dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis)
+		dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create dbstore: %w", err)
 		}
@@ -241,7 +241,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		// note: autopilot refuses to start without peers
 		bs = &spoofedSyncer{s}
 	}
-	b, err := bus.New(ctx, config.Bus{
+	b, err := bus.New(config.Bus{
 		AllowPrivateIPs:               true,
 		AnnouncementMaxAgeHours:       90 * 24,
 		Bootstrap:                     true,
