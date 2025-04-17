@@ -112,7 +112,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 			return fmt.Errorf("failed to open bolt db: %w", err)
 		}
 		defer bdb.Close()
-		dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis)
+		dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create dbstore: %w", err)
 		}
