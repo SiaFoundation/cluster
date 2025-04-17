@@ -1,3 +1,14 @@
+## 0.1.5 (2025-04-17)
+
+### Features
+
+- Update hostd, renterd, and walletd dependencies
+- Add explored support
+
+### Fixes
+
+- enable redundant host IPs for local clusters
+
 ## 0.1.4 (2025-01-18)
 
 ### Features
