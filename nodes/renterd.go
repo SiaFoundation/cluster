@@ -423,7 +423,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		return fmt.Errorf("failed to wait for sync: %w", err)
 	}
 
-	if _, err := autopilotClient.Trigger(true); err != nil {
+	if _, err := autopilotClient.Trigger(ctx, true); err != nil {
 		return fmt.Errorf("failed to trigger autopilot: %w", err)
 	}
 	log.Info("node started", zap.Stringer("http", apiListener.Addr()))
