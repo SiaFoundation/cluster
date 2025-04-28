@@ -29,7 +29,6 @@ import (
 	"go.sia.tech/renterd/v2/config"
 	"go.sia.tech/renterd/v2/stores"
 	"go.sia.tech/renterd/v2/stores/sql/sqlite"
-	"go.sia.tech/renterd/v2/webhooks"
 	"go.sia.tech/renterd/v2/worker"
 	"go.uber.org/zap"
 )
@@ -200,13 +199,6 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 	defer store.Close()
 
-	wh, err := webhooks.NewManager(store, log.Named("webhooks"))
-	if err != nil {
-		return fmt.Errorf("failed to create webhook manager: %w", err)
-	}
-
-	am.RegisterWebhookBroadcaster(wh)
-
 	mux := &api.TreeMux{Sub: make(map[string]api.TreeMux)}
 	server := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -248,7 +240,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		GatewayAddr:                   s.Addr(),
 		UsedUTXOExpiry:                time.Hour,
 		SlabBufferCompletionThreshold: 1 << 12,
-	}, ([32]byte)(sk[:32]), am, wh, cm, bs, wm, store, "https://api.siascan.com", log.Named("bus"))
+	}, ([32]byte)(sk[:32]), am, cm, bs, wm, store, "https://api.siascan.com", log.Named("bus"))
 	if err != nil {
 		return fmt.Errorf("failed to create bus: %w", err)
 	}
