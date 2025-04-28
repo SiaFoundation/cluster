@@ -37,7 +37,6 @@ import (
 	"go.sia.tech/hostd/v2/rhp"
 	rhp2 "go.sia.tech/hostd/v2/rhp/v2"
 	rhp3 "go.sia.tech/hostd/v2/rhp/v3"
-	"go.sia.tech/hostd/v2/webhooks"
 	"go.sia.tech/jape"
 	"go.uber.org/zap"
 )
@@ -162,13 +161,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer wm.Close()
 
-	wr, err := webhooks.NewManager(store, log.Named("webhooks"))
-	if err != nil {
-		return fmt.Errorf("failed to create webhook reporter: %w", err)
-	}
-	defer wr.Close()
-
-	am := alerts.NewManager(alerts.WithEventReporter(wr), alerts.WithLog(log.Named("alerts")))
+	am := alerts.NewManager(alerts.WithLog(log.Named("alerts")))
 
 	vm, err := storage.NewVolumeManager(store, storage.WithLogger(log.Named("volumes")), storage.WithAlerter(am))
 	if err != nil {
@@ -295,7 +288,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 
 	a := jape.BasicAuth("sia is cool")(api.NewServer("", sk.PublicKey(), cm, s, accounts, contractManager, vm, wm, store, cfm, index, api.WithAlerts(am),
 		api.WithLogger(log.Named("api")),
-		api.WithWebhooks(wr),
 		api.WithPinnedSettings(pm),
 		api.WithExplorer(ex)))
 	server := http.Server{
