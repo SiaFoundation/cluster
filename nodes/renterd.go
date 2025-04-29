@@ -201,11 +201,6 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	}
 	defer wm.Close()
 
-	var bs bus.Syncer = s
-	if m.shareConsensus {
-		// note: autopilot refuses to start without peers
-		bs = mock.NewSyncer()
-	}
 	b, err := bus.New(config.Bus{
 		AllowPrivateIPs:               true,
 		AnnouncementMaxAgeHours:       90 * 24,
@@ -213,7 +208,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		GatewayAddr:                   s.Addr(),
 		UsedUTXOExpiry:                time.Hour,
 		SlabBufferCompletionThreshold: 1 << 12,
-	}, ([32]byte)(sk[:32]), am, cm, bs, wm, store, "https://api.siascan.com", log.Named("bus"))
+	}, ([32]byte)(sk[:32]), am, cm, mockOrDefault[bus.Syncer](s, mock.NewSyncer(), m.shareConsensus), wm, store, "https://api.siascan.com", log.Named("bus"))
 	if err != nil {
 		return fmt.Errorf("failed to create bus: %w", err)
 	}

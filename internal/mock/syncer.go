@@ -2,10 +2,12 @@ package mock
 
 import (
 	"context"
+	"time"
 
 	"go.sia.tech/core/gateway"
 	"go.sia.tech/core/types"
 	"go.sia.tech/coreutils/syncer"
+	"lukechampine.com/frand"
 )
 
 // A Syncer mocks the Syncer interface for testing purposes.
@@ -28,6 +30,17 @@ func (s *Syncer) BroadcastTransactionSet([]types.Transaction) error { return nil
 // BroadcastV2TransactionSet broadcasts a set of V2 transactions to the network.
 func (s *Syncer) BroadcastV2TransactionSet(index types.ChainIndex, txns []types.V2Transaction) error {
 	return nil
+}
+
+// PeerInfo returns information about the Syncer.
+func (s *Syncer) PeerInfo(addr string) (syncer.PeerInfo, error) {
+	return syncer.PeerInfo{
+		Address:      addr,
+		FirstSeen:    time.Now(),
+		LastConnect:  time.Now(),
+		SyncedBlocks: frand.Uint64n(10000),
+		SyncDuration: time.Duration(frand.Intn(10000)) * time.Millisecond,
+	}, nil
 }
 
 // Connect connects to a peer at the given address.
