@@ -54,11 +54,11 @@ func parseListenerPort(addr string) (uint16, error) {
 	return uint16(port), nil
 }
 
-func mockOrDefault[T any](real, mock T, shared bool) T {
+func mockOrDefault[T any](original, mock T, shared bool) T {
 	if shared {
 		return mock
 	}
-	return real
+	return original
 }
 
 // StartHostd starts a new hostd node. It listens on random ports and registers
