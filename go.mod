@@ -5,13 +5,13 @@ go 1.23.2
 toolchain go1.24.2
 
 require (
-	go.sia.tech/core v0.11.0
-	go.sia.tech/coreutils v0.13.1
-	go.sia.tech/explored v0.0.0-20250424120217-70aa1374adfd
-	go.sia.tech/hostd/v2 v2.1.0-beta.4.0.20250424120304-711ac3eb1da0
+	go.sia.tech/core v0.12.0
+	go.sia.tech/coreutils v0.13.2
+	go.sia.tech/explored v0.0.0-20250429094914-017163e80b36
+	go.sia.tech/hostd/v2 v2.1.0-beta.4.0.20250429094021-8048e92a76dd
 	go.sia.tech/jape v0.13.1
-	go.sia.tech/renterd/v2 v2.0.2-0.20250428115703-21e769b3108c
-	go.sia.tech/walletd/v2 v2.2.1
+	go.sia.tech/renterd/v2 v2.0.2-0.20250429133416-0719be4614ed
+	go.sia.tech/walletd/v2 v2.2.2-0.20250429170949-1bf364a50cfb
 	go.uber.org/zap v1.27.0
 	lukechampine.com/frand v1.5.1
 )
@@ -43,7 +43,6 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	go.etcd.io/bbolt v1.4.0 // indirect
 	go.sia.tech/gofakes3 v0.0.5 // indirect
-	go.sia.tech/hostd v1.1.3-0.20250228194313-d3dea27df190 // indirect
 	go.sia.tech/mux v1.4.0 // indirect
 	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"go.sia.tech/cluster/internal/mock"
 	"go.sia.tech/core/gateway"
 	"go.sia.tech/core/types"
 	"go.sia.tech/coreutils"
@@ -161,7 +162,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer wm.Close()
 
-	am := alerts.NewManager(alerts.WithLog(log.Named("alerts")))
+	am := alerts.NewManager(alerts.WithLog(log.Named("alerts")), alerts.WithEventReporter(mock.NewEventReporter()))
 
 	vm, err := storage.NewVolumeManager(store, storage.WithLogger(log.Named("volumes")), storage.WithAlerter(am))
 	if err != nil {
@@ -225,7 +226,12 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer rhp4QUICListener.Close()
 
-	cfm, err := settings.NewConfigManager(sk, store, cm, s, vm, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")),
+	var settingsSyncer settings.Syncer = s
+	if m.shareConsensus {
+		settingsSyncer = mock.NewSyncer()
+	}
+
+	cfm, err := settings.NewConfigManager(sk, store, cm, settingsSyncer, vm, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")),
 		settings.WithValidateNetAddress(false),
 		settings.WithAnnounceInterval(144*30),
 		settings.WithRHP2Port(rhp2Port),
@@ -254,7 +260,12 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to add volume: %w", err)
 	}
 
-	contractManager, err := contracts.NewManager(store, vm, cm, s, wm, contracts.WithLog(log.Named("contracts")), contracts.WithAlerter(am), contracts.WithRevisionSubmissionBuffer(10))
+	var contractsSyncer contracts.Syncer = s
+	if m.shareConsensus {
+		contractsSyncer = mock.NewSyncer()
+	}
+
+	contractManager, err := contracts.NewManager(store, vm, cm, contractsSyncer, wm, contracts.WithLog(log.Named("contracts")), contracts.WithAlerter(am), contracts.WithRevisionSubmissionBuffer(10))
 	if err != nil {
 		return fmt.Errorf("failed to create contracts manager: %w", err)
 	}
@@ -266,17 +277,33 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer index.Close()
 
-	rhp2 := rhp2.NewSessionHandler(rhp2Listener, sk, cm, s, wm, contractManager, cfm, vm, log.Named("rhp2"))
+	var r2s rhp2.Syncer = s
+	if m.shareConsensus {
+		r2s = mock.NewSyncer()
+	}
+
+	rhp2 := rhp2.NewSessionHandler(rhp2Listener, sk, cm, r2s, wm, contractManager, cfm, vm, log.Named("rhp2"))
 	go rhp2.Serve()
 	defer rhp2.Close()
 
 	registry := registry.NewManager(sk, store, log.Named("registry"))
 	accounts := accounts.NewManager(store, cfm)
-	rhp3 := rhp3.NewSessionHandler(rhp3Listener, sk, cm, s, wm, accounts, contractManager, registry, vm, cfm, log.Named("rhp3"))
+
+	var r3s rhp3.Syncer = s
+	if m.shareConsensus {
+		r3s = mock.NewSyncer()
+	}
+
+	rhp3 := rhp3.NewSessionHandler(rhp3Listener, sk, cm, r3s, wm, accounts, contractManager, registry, vm, cfm, log.Named("rhp3"))
 	go rhp3.Serve()
 	defer rhp3.Close()
 
-	rhp4 := rhp4.NewServer(sk, cm, s, contractManager, wm, cfm, vm, rhp4.WithPriceTableValidity(10*time.Minute))
+	var r4s rhp4.Syncer
+	if m.shareConsensus {
+		r4s = mock.NewSyncer()
+	}
+
+	rhp4 := rhp4.NewServer(sk, cm, r4s, contractManager, wm, cfm, vm, rhp4.WithPriceTableValidity(10*time.Minute))
 	go siamux.Serve(rhp4Listener, rhp4, log.Named("rhp4.siamux"))
 	go quic.Serve(rhp4QUICListener, rhp4, log.Named("rhp4.quic"))
 

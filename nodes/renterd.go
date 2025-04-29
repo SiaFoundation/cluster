@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"go.sia.tech/cluster/internal/mock"
 	"go.sia.tech/core/gateway"
 	"go.sia.tech/core/types"
 	"go.sia.tech/coreutils"
@@ -32,34 +33,6 @@ import (
 	"go.sia.tech/renterd/v2/worker"
 	"go.uber.org/zap"
 )
-
-type spoofedSyncer struct {
-	*syncer.Syncer
-}
-
-func (s *spoofedSyncer) Addr() string {
-	return ""
-}
-
-func (s *spoofedSyncer) BroadcastHeader(h types.BlockHeader)               {}
-func (s *spoofedSyncer) BroadcastV2BlockOutline(bo gateway.V2BlockOutline) {}
-func (s *spoofedSyncer) BroadcastTransactionSet([]types.Transaction)       {}
-func (s *spoofedSyncer) BroadcastV2TransactionSet(index types.ChainIndex, txns []types.V2Transaction) {
-}
-
-func (s *spoofedSyncer) Connect(ctx context.Context, addr string) (*syncer.Peer, error) {
-	return new(syncer.Peer), nil
-}
-
-func (s *spoofedSyncer) Peers() (peers []*syncer.Peer) {
-	for i := 0; i < 10; i++ {
-		peers = append(peers, &syncer.Peer{
-			ConnAddr: "",
-			Inbound:  false,
-		})
-	}
-	return
-}
 
 // StartRenterd starts a new renterd node and adds it to the manager.
 // This function blocks until the context is canceled. All resources will be
@@ -231,7 +204,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	var bs bus.Syncer = s
 	if m.shareConsensus {
 		// note: autopilot refuses to start without peers
-		bs = &spoofedSyncer{s}
+		bs = mock.NewSyncer()
 	}
 	b, err := bus.New(config.Bus{
 		AllowPrivateIPs:               true,
