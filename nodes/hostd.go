@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"go.sia.tech/cluster/internal/mock"
 	"go.sia.tech/core/gateway"
 	"go.sia.tech/core/types"
 	"go.sia.tech/coreutils"
@@ -51,6 +52,13 @@ func parseListenerPort(addr string) (uint16, error) {
 		return 0, fmt.Errorf("failed to parse port: %w", err)
 	}
 	return uint16(port), nil
+}
+
+func mockOrDefault[T any](original, mock T, shared bool) T {
+	if shared {
+		return mock
+	}
+	return original
 }
 
 // StartHostd starts a new hostd node. It listens on random ports and registers
@@ -161,7 +169,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer wm.Close()
 
-	am := alerts.NewManager(alerts.WithLog(log.Named("alerts")))
+	am := alerts.NewManager(alerts.WithLog(log.Named("alerts")), alerts.WithEventReporter(mock.NewEventReporter()))
 
 	vm, err := storage.NewVolumeManager(store, storage.WithLogger(log.Named("volumes")), storage.WithAlerter(am))
 	if err != nil {
@@ -225,7 +233,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer rhp4QUICListener.Close()
 
-	cfm, err := settings.NewConfigManager(sk, store, cm, s, vm, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")),
+	cfm, err := settings.NewConfigManager(sk, store, cm, mockOrDefault[settings.Syncer](s, mock.NewSyncer(), m.shareConsensus), vm, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")),
 		settings.WithValidateNetAddress(false),
 		settings.WithAnnounceInterval(144*30),
 		settings.WithRHP2Port(rhp2Port),
@@ -254,7 +262,9 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to add volume: %w", err)
 	}
 
-	contractManager, err := contracts.NewManager(store, vm, cm, s, wm, contracts.WithLog(log.Named("contracts")), contracts.WithAlerter(am), contracts.WithRevisionSubmissionBuffer(10))
+	contractManager, err := contracts.NewManager(store, vm, cm,
+		mockOrDefault[contracts.Syncer](s, mock.NewSyncer(), m.shareConsensus),
+		wm, contracts.WithLog(log.Named("contracts")), contracts.WithAlerter(am), contracts.WithRevisionSubmissionBuffer(10))
 	if err != nil {
 		return fmt.Errorf("failed to create contracts manager: %w", err)
 	}
@@ -266,17 +276,18 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer index.Close()
 
-	rhp2 := rhp2.NewSessionHandler(rhp2Listener, sk, cm, s, wm, contractManager, cfm, vm, log.Named("rhp2"))
+	rhp2 := rhp2.NewSessionHandler(rhp2Listener, sk, cm, mockOrDefault[rhp2.Syncer](s, mock.NewSyncer(), m.shareConsensus), wm, contractManager, cfm, vm, log.Named("rhp2"))
 	go rhp2.Serve()
 	defer rhp2.Close()
 
 	registry := registry.NewManager(sk, store, log.Named("registry"))
 	accounts := accounts.NewManager(store, cfm)
-	rhp3 := rhp3.NewSessionHandler(rhp3Listener, sk, cm, s, wm, accounts, contractManager, registry, vm, cfm, log.Named("rhp3"))
+
+	rhp3 := rhp3.NewSessionHandler(rhp3Listener, sk, cm, mockOrDefault[rhp3.Syncer](s, mock.NewSyncer(), m.shareConsensus), wm, accounts, contractManager, registry, vm, cfm, log.Named("rhp3"))
 	go rhp3.Serve()
 	defer rhp3.Close()
 
-	rhp4 := rhp4.NewServer(sk, cm, s, contractManager, wm, cfm, vm, rhp4.WithPriceTableValidity(10*time.Minute))
+	rhp4 := rhp4.NewServer(sk, cm, mockOrDefault[rhp4.Syncer](s, mock.NewSyncer(), m.shareConsensus), contractManager, wm, cfm, vm, rhp4.WithPriceTableValidity(10*time.Minute))
 	go siamux.Serve(rhp4Listener, rhp4, log.Named("rhp4.siamux"))
 	go quic.Serve(rhp4QUICListener, rhp4, log.Named("rhp4.quic"))
 
@@ -286,7 +297,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to create pin manager: %w", err)
 	}
 
-	a := jape.BasicAuth("sia is cool")(api.NewServer("", sk.PublicKey(), cm, s, accounts, contractManager, vm, wm, store, cfm, index, api.WithAlerts(am),
+	a := jape.BasicAuth("sia is cool")(api.NewServer("", sk.PublicKey(), cm, mockOrDefault[api.Syncer](s, mock.NewSyncer(), m.shareConsensus), accounts, contractManager, vm, wm, store, cfm, index, api.WithAlerts(am),
 		api.WithLogger(log.Named("api")),
 		api.WithPinnedSettings(pm),
 		api.WithExplorer(ex)))
