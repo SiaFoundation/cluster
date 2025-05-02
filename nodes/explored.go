@@ -60,18 +60,16 @@ func (m *Manager) StartExplored(ctx context.Context, ready chan<- struct{}, apiP
 	defer httpListener.Close()
 
 	network := m.chain.TipState().Network
+	genesisIndex, ok := m.chain.BestIndex(0)
+	if !ok {
+		return errors.New("failed to get genesis index")
+	}
 
 	var cm *chain.Manager
-	var s *syncer.Syncer
 	if m.shareConsensus {
 		cm = m.chain
-		s = m.syncer
 	} else {
 		// start a chain manager
-		genesisIndex, ok := m.chain.BestIndex(0)
-		if !ok {
-			return errors.New("failed to get genesis index")
-		}
 		genesis, ok := m.chain.Block(genesisIndex.ID)
 		if !ok {
 			return errors.New("failed to get genesis block")
@@ -87,36 +85,32 @@ func (m *Manager) StartExplored(ctx context.Context, ready chan<- struct{}, apiP
 		}
 
 		cm = chain.NewManager(dbstore, tipState)
+	}
 
-		syncerListener, err := net.Listen("tcp", ":0")
-		if err != nil {
-			return fmt.Errorf("failed to listen on syncer address: %w", err)
-		}
-		defer syncerListener.Close()
+	// start a syncer
+	syncerListener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return fmt.Errorf("failed to listen on syncer address: %w", err)
+	}
+	defer syncerListener.Close()
 
-		// start a syncer
-		_, port, err := net.SplitHostPort(syncerListener.Addr().String())
-		if err != nil {
-			return fmt.Errorf("failed to split syncer address: %w", err)
-		}
-		s = syncer.New(syncerListener, cm, testutil.NewEphemeralPeerStore(), gateway.Header{
-			GenesisID:  genesisIndex.ID,
-			UniqueID:   gateway.GenerateUniqueID(),
-			NetAddress: "127.0.0.1" + port,
-		}, syncer.WithLogger(log.Named("syncer")),
-			syncer.WithPeerDiscoveryInterval(5*time.Second),
-			syncer.WithSyncInterval(5*time.Second),
-			syncer.WithMaxInboundPeers(10000),
-			syncer.WithMaxOutboundPeers(10000))
-		defer s.Close()
-		go s.Run()
+	s := syncer.New(syncerListener, cm, testutil.NewEphemeralPeerStore(), gateway.Header{
+		GenesisID:  genesisIndex.ID,
+		UniqueID:   gateway.GenerateUniqueID(),
+		NetAddress: syncerListener.Addr().String(),
+	}, syncer.WithLogger(log.Named("syncer")),
+		syncer.WithPeerDiscoveryInterval(5*time.Second),
+		syncer.WithSyncInterval(5*time.Second),
+		syncer.WithMaxInboundPeers(10000),
+		syncer.WithMaxOutboundPeers(10000))
+	defer s.Close()
+	go s.Run()
 
-		node.SyncerAddress = syncerListener.Addr().String()
-		// connect to the cluster syncer
-		_, err = m.syncer.Connect(ctx, node.SyncerAddress)
-		if err != nil {
-			return fmt.Errorf("failed to connect to cluster syncer: %w", err)
-		}
+	node.SyncerAddress = syncerListener.Addr().String()
+	// connect to the cluster syncer
+	_, err = m.syncer.Connect(ctx, node.SyncerAddress)
+	if err != nil {
+		return fmt.Errorf("failed to connect to cluster syncer: %w", err)
 	}
 
 	store, err := sqlite.OpenDatabase(filepath.Join(dir, "explored.sqlite3"), log.Named("sqlite3"))
@@ -177,24 +171,21 @@ func (m *Manager) StartExplored(ctx context.Context, ready chan<- struct{}, apiP
 
 	node.APIAddress = "http://" + httpListener.Addr().String()
 
-	waitForSync := func() error {
-		tip, err := e.Tip()
-		if err != nil {
-			return err
-		}
-		// wait for sync
-		for m.chain.Tip() != tip {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(100 * time.Millisecond):
+waitForSync:
+	// wait for sync
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+			tip, err := e.Tip()
+			if err != nil {
+				return err
+			} else if tip == cm.Tip() {
+				break waitForSync
 			}
+			log.Debug("waiting for sync", zap.Stringer("tip", tip), zap.Stringer("target", cm.Tip()))
 		}
-		return nil
-	}
-
-	if err := waitForSync(); err != nil {
-		return fmt.Errorf("failed to wait for sync: %w", err)
 	}
 
 	log.Info("node started", zap.String("network", cm.TipState().Network.Name), zap.String("http", httpListener.Addr().String()))

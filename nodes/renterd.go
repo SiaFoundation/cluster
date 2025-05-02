@@ -105,14 +105,10 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	defer syncerListener.Close()
 
 	// start a syncer
-	_, port, err := net.SplitHostPort(syncerListener.Addr().String())
-	if err != nil {
-		return fmt.Errorf("failed to split syncer address: %w", err)
-	}
 	s := syncer.New(syncerListener, cm, testutil.NewEphemeralPeerStore(), gateway.Header{
 		GenesisID:  genesisIndex.ID,
 		UniqueID:   gateway.GenerateUniqueID(),
-		NetAddress: "127.0.0.1:" + port,
+		NetAddress: syncerListener.Addr().String(),
 	}, syncer.WithLogger(log.Named("syncer")),
 		syncer.WithPeerDiscoveryInterval(5*time.Second),
 		syncer.WithSyncInterval(5*time.Second),
