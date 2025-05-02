@@ -228,6 +228,7 @@ func main() {
 		case <-ctx.Done():
 			log.Panic("context canceled")
 		case <-ready:
+			log.Debug("explored ready")
 		}
 	}
 
