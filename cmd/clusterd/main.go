@@ -73,7 +73,7 @@ func main() {
 
 	zap.RedirectStdLog(log)
 
-	if hostdCount == 0 && renterdCount == 0 && walletdCount == 0 {
+	if hostdCount == 0 && renterdCount == 0 && walletdCount == 0 && exploredCount == 0 {
 		log.Panic("no nodes to run")
 	}
 
@@ -221,7 +221,7 @@ func main() {
 		go func() {
 			if err := nm.StartExplored(ctx, ready, apiPassword); err != nil {
 				cancel()
-				log.Error("walletd failed to start", zap.Error(err))
+				log.Error("explored failed to start", zap.Error(err))
 			}
 		}()
 		select {
