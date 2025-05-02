@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"go.sia.tech/cluster/internal/mock"
 	"go.sia.tech/core/gateway"
 	"go.sia.tech/coreutils"
 	"go.sia.tech/coreutils/chain"
@@ -67,18 +66,16 @@ func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) (err 
 	defer store.Close()
 
 	network := m.chain.TipState().Network
+	genesisIndex, ok := m.chain.BestIndex(0)
+	if !ok {
+		return errors.New("failed to get genesis index")
+	}
 
 	var cm *chain.Manager
-	var s *syncer.Syncer
 	if m.shareConsensus {
 		cm = m.chain
-		s = m.syncer
 	} else {
 		// start a chain manager
-		genesisIndex, ok := m.chain.BestIndex(0)
-		if !ok {
-			return errors.New("failed to get genesis index")
-		}
 		genesis, ok := m.chain.Block(genesisIndex.ID)
 		if !ok {
 			return errors.New("failed to get genesis block")
@@ -94,36 +91,36 @@ func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) (err 
 		}
 
 		cm = chain.NewManager(dbstore, tipState)
+	}
 
-		syncerListener, err := net.Listen("tcp", ":0")
-		if err != nil {
-			return fmt.Errorf("failed to listen on syncer address: %w", err)
-		}
-		defer syncerListener.Close()
+	syncerListener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return fmt.Errorf("failed to listen on syncer address: %w", err)
+	}
+	defer syncerListener.Close()
 
-		// start a syncer
-		_, port, err := net.SplitHostPort(syncerListener.Addr().String())
-		if err != nil {
-			return fmt.Errorf("failed to split syncer address: %w", err)
-		}
-		s = syncer.New(syncerListener, cm, testutil.NewEphemeralPeerStore(), gateway.Header{
-			GenesisID:  genesisIndex.ID,
-			UniqueID:   gateway.GenerateUniqueID(),
-			NetAddress: "127.0.0.1:" + port,
-		}, syncer.WithLogger(log.Named("syncer")),
-			syncer.WithPeerDiscoveryInterval(5*time.Second),
-			syncer.WithSyncInterval(5*time.Second),
-			syncer.WithMaxInboundPeers(10000),
-			syncer.WithMaxOutboundPeers(10000))
-		defer s.Close()
-		go s.Run()
+	// start a syncer
+	_, port, err := net.SplitHostPort(syncerListener.Addr().String())
+	if err != nil {
+		return fmt.Errorf("failed to split syncer address: %w", err)
+	}
+	s := syncer.New(syncerListener, cm, testutil.NewEphemeralPeerStore(), gateway.Header{
+		GenesisID:  genesisIndex.ID,
+		UniqueID:   gateway.GenerateUniqueID(),
+		NetAddress: "127.0.0.1:" + port,
+	}, syncer.WithLogger(log.Named("syncer")),
+		syncer.WithPeerDiscoveryInterval(5*time.Second),
+		syncer.WithSyncInterval(5*time.Second),
+		syncer.WithMaxInboundPeers(10000),
+		syncer.WithMaxOutboundPeers(10000))
+	defer s.Close()
+	go s.Run()
 
-		node.SyncerAddress = syncerListener.Addr().String()
-		// connect to the cluster syncer
-		_, err = m.syncer.Connect(ctx, node.SyncerAddress)
-		if err != nil {
-			return fmt.Errorf("failed to connect to cluster syncer: %w", err)
-		}
+	node.SyncerAddress = syncerListener.Addr().String()
+	// connect to the cluster syncer
+	_, err = m.syncer.Connect(ctx, node.SyncerAddress)
+	if err != nil {
+		return fmt.Errorf("failed to connect to cluster syncer: %w", err)
 	}
 
 	wm, err := wallet.NewManager(cm, store, wallet.WithLogger(log.Named("wallet")), wallet.WithIndexMode(wallet.IndexModePersonal)) // TODO switch index modes
@@ -132,7 +129,7 @@ func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) (err 
 	}
 	defer wm.Close()
 
-	api := jape.BasicAuth("sia is cool")(api.NewServer(cm, mockOrDefault[api.Syncer](s, mock.NewSyncer(), m.shareConsensus), wm, api.WithLogger(log.Named("api"))))
+	api := jape.BasicAuth("sia is cool")(api.NewServer(cm, s, wm, api.WithLogger(log.Named("api"))))
 	server := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")

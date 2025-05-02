@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"go.sia.tech/cluster/internal/mock"
 	"go.sia.tech/core/gateway"
 	"go.sia.tech/core/types"
 	"go.sia.tech/coreutils"
@@ -72,18 +71,16 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	defer apiListener.Close()
 
 	network := m.chain.TipState().Network
+	genesisIndex, ok := m.chain.BestIndex(0)
+	if !ok {
+		return errors.New("failed to get genesis index")
+	}
 
 	var cm *chain.Manager
-	var s *syncer.Syncer
 	if m.shareConsensus {
 		cm = m.chain
-		s = m.syncer
 	} else {
 		// start a chain manager
-		genesisIndex, ok := m.chain.BestIndex(0)
-		if !ok {
-			return errors.New("failed to get genesis index")
-		}
 		genesis, ok := m.chain.Block(genesisIndex.ID)
 		if !ok {
 			return errors.New("failed to get genesis block")
@@ -99,36 +96,36 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		}
 
 		cm = chain.NewManager(dbstore, tipState)
+	}
 
-		syncerListener, err := net.Listen("tcp", ":0")
-		if err != nil {
-			return fmt.Errorf("failed to listen on syncer address: %w", err)
-		}
-		defer syncerListener.Close()
+	syncerListener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return fmt.Errorf("failed to listen on syncer address: %w", err)
+	}
+	defer syncerListener.Close()
 
-		// start a syncer
-		_, port, err := net.SplitHostPort(syncerListener.Addr().String())
-		if err != nil {
-			return fmt.Errorf("failed to split syncer address: %w", err)
-		}
-		s = syncer.New(syncerListener, cm, testutil.NewEphemeralPeerStore(), gateway.Header{
-			GenesisID:  genesisIndex.ID,
-			UniqueID:   gateway.GenerateUniqueID(),
-			NetAddress: "127.0.0.1:" + port,
-		}, syncer.WithLogger(log.Named("syncer")),
-			syncer.WithPeerDiscoveryInterval(5*time.Second),
-			syncer.WithSyncInterval(5*time.Second),
-			syncer.WithMaxInboundPeers(10000),
-			syncer.WithMaxOutboundPeers(10000))
-		defer s.Close()
-		go s.Run()
+	// start a syncer
+	_, port, err := net.SplitHostPort(syncerListener.Addr().String())
+	if err != nil {
+		return fmt.Errorf("failed to split syncer address: %w", err)
+	}
+	s := syncer.New(syncerListener, cm, testutil.NewEphemeralPeerStore(), gateway.Header{
+		GenesisID:  genesisIndex.ID,
+		UniqueID:   gateway.GenerateUniqueID(),
+		NetAddress: "127.0.0.1:" + port,
+	}, syncer.WithLogger(log.Named("syncer")),
+		syncer.WithPeerDiscoveryInterval(5*time.Second),
+		syncer.WithSyncInterval(5*time.Second),
+		syncer.WithMaxInboundPeers(10000),
+		syncer.WithMaxOutboundPeers(10000))
+	defer s.Close()
+	go s.Run()
 
-		node.SyncerAddress = syncerListener.Addr().String()
-		// connect to the cluster syncer
-		_, err = m.syncer.Connect(ctx, node.SyncerAddress)
-		if err != nil {
-			return fmt.Errorf("failed to connect to cluster syncer: %w", err)
-		}
+	node.SyncerAddress = syncerListener.Addr().String()
+	// connect to the cluster syncer
+	_, err = m.syncer.Connect(ctx, node.SyncerAddress)
+	if err != nil {
+		return fmt.Errorf("failed to connect to cluster syncer: %w", err)
 	}
 
 	db, err := sqlite.Open(filepath.Join(dir, "db.sqlite"))
@@ -208,7 +205,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		GatewayAddr:                   s.Addr(),
 		UsedUTXOExpiry:                time.Hour,
 		SlabBufferCompletionThreshold: 1 << 12,
-	}, ([32]byte)(sk[:32]), am, cm, mockOrDefault[bus.Syncer](s, mock.NewSyncer(), m.shareConsensus), wm, store, "https://api.siascan.com", log.Named("bus"))
+	}, ([32]byte)(sk[:32]), am, cm, s, wm, store, "https://api.siascan.com", log.Named("bus"))
 	if err != nil {
 		return fmt.Errorf("failed to create bus: %w", err)
 	}
