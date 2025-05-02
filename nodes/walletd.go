@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"go.sia.tech/cluster/internal/mock"
 	"go.sia.tech/core/gateway"
 	"go.sia.tech/coreutils"
 	"go.sia.tech/coreutils/chain"
@@ -131,7 +132,7 @@ func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) (err 
 	}
 	defer wm.Close()
 
-	api := jape.BasicAuth("sia is cool")(api.NewServer(cm, s, wm, api.WithLogger(log.Named("api"))))
+	api := jape.BasicAuth("sia is cool")(api.NewServer(cm, mockOrDefault[api.Syncer](s, mock.NewSyncer(), m.shareConsensus), wm, api.WithLogger(log.Named("api"))))
 	server := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
