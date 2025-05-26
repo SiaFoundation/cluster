@@ -59,7 +59,7 @@ func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) (err 
 	}
 	defer os.RemoveAll(dir)
 
-	store, err := sqlite.OpenDatabase(filepath.Join(dir, "walletd.sqlite3"), log.Named("sqlite3"))
+	store, err := sqlite.OpenDatabase(filepath.Join(dir, "walletd.sqlite3"), sqlite.WithLog(log.Named("sqlite3")))
 	if err != nil {
 		return fmt.Errorf("failed to open wallet database: %w", err)
 	}

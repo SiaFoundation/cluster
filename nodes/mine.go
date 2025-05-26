@@ -46,11 +46,7 @@ func mineBlock(ctx context.Context, cm *chain.Manager, addr types.Address) (type
 		b.MinerPayouts[0].Value = b.MinerPayouts[0].Value.Add(txn.MinerFee)
 	}
 	if b.V2 != nil {
-		b.V2.Commitment = cs.Commitment(cs.TransactionsCommitment(b.Transactions, b.V2Transactions()), addr)
-	}
-
-	if b.V2 != nil {
-		b.V2.Commitment = cs.Commitment(cs.TransactionsCommitment(b.Transactions, b.V2Transactions()), addr)
+		b.V2.Commitment = cs.Commitment(addr, b.Transactions, b.V2Transactions())
 	}
 
 	b.Nonce = 0
