@@ -8,7 +8,7 @@ require (
 	go.sia.tech/explored v1.0.0-beta.1.0.20250526154359-a4bc004203d0
 	go.sia.tech/hostd/v2 v2.2.0
 	go.sia.tech/jape v0.14.0
-	go.sia.tech/renterd/v2 v2.1.1-0.20250526155902-43fdba14d395
+	go.sia.tech/renterd/v2 v2.1.1-0.20250527074103-b714877c4281
 	go.sia.tech/walletd/v2 v2.8.0
 	go.uber.org/zap v1.27.0
 	lukechampine.com/frand v1.5.1
