@@ -3,13 +3,13 @@ module go.sia.tech/cluster // v0.1.4
 go 1.24.2
 
 require (
-	go.sia.tech/core v0.13.0
-	go.sia.tech/coreutils v0.15.0
-	go.sia.tech/explored v1.0.0-beta.1.0.20250526154359-a4bc004203d0
-	go.sia.tech/hostd/v2 v2.2.0
+	go.sia.tech/core v0.13.1
+	go.sia.tech/coreutils v0.15.2
+	go.sia.tech/explored v1.0.0-beta.1.0.20250603133754-d43d26bd0315
+	go.sia.tech/hostd/v2 v2.2.4-0.20250605181305-cad10a71f4b5
 	go.sia.tech/jape v0.14.0
-	go.sia.tech/renterd/v2 v2.1.1-0.20250527074103-b714877c4281
-	go.sia.tech/walletd/v2 v2.8.0
+	go.sia.tech/renterd/v2 v2.2.1
+	go.sia.tech/walletd/v2 v2.9.1-0.20250603065724-e18f1f762f85
 	go.uber.org/zap v1.27.0
 	lukechampine.com/frand v1.5.1
 )
