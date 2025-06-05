@@ -26,6 +26,7 @@ import (
 	"go.sia.tech/hostd/v2/alerts"
 	"go.sia.tech/hostd/v2/api"
 	"go.sia.tech/hostd/v2/certificates"
+	"go.sia.tech/hostd/v2/certificates/providers/selfsigned"
 	"go.sia.tech/hostd/v2/explorer"
 	"go.sia.tech/hostd/v2/host/accounts"
 	"go.sia.tech/hostd/v2/host/contracts"
@@ -208,13 +209,12 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer rhp4UDPListener.Close()
 
-	certs, err := certificates.NewManager(dir, sk)
+	certs, err := selfsigned.New()
 	if err != nil {
 		return fmt.Errorf("failed to create certificates manager: %w", err)
 	}
-	defer certs.Close()
 
-	rhp4QUICListener, err := quic.Listen(rhp4UDPListener, certs)
+	rhp4QUICListener, err := quic.Listen(rhp4UDPListener, certificates.NewQUICCertManager(certs))
 	if err != nil {
 		return fmt.Errorf("failed to listen on quic addr: %w", err)
 	}
