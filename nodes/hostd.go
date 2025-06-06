@@ -151,7 +151,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer store.Close()
 
-	wm, err := wallet.NewSingleAddressWallet(sk, cm, store, wallet.WithLogger(log.Named("wallet")), wallet.WithReservationDuration(3*time.Hour))
+	wm, err := wallet.NewSingleAddressWallet(sk, cm, store, m.syncer, wallet.WithLogger(log.Named("wallet")), wallet.WithReservationDuration(3*time.Hour))
 	if err != nil {
 		return fmt.Errorf("failed to create wallet: %w", err)
 	}
@@ -220,7 +220,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer rhp4QUICListener.Close()
 
-	cfm, err := settings.NewConfigManager(sk, store, cm, s, vm, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")),
+	cfm, err := settings.NewConfigManager(sk, store, cm, vm, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")),
 		settings.WithValidateNetAddress(false),
 		settings.WithAnnounceInterval(144*30),
 		settings.WithRHP2Port(rhp2Port),
@@ -249,7 +249,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to add volume: %w", err)
 	}
 
-	contractManager, err := contracts.NewManager(store, vm, cm, s, wm, contracts.WithLog(log.Named("contracts")), contracts.WithAlerter(am), contracts.WithRevisionSubmissionBuffer(10))
+	contractManager, err := contracts.NewManager(store, vm, cm, wm, contracts.WithLog(log.Named("contracts")), contracts.WithAlerter(am), contracts.WithRevisionSubmissionBuffer(10))
 	if err != nil {
 		return fmt.Errorf("failed to create contracts manager: %w", err)
 	}

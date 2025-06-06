@@ -188,7 +188,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 	auth := api.Auth(tokens, node.Password)
 	mux.Sub["/api/auth"] = api.TreeMux{Handler: api.AuthHandler(tokens, node.Password)}
 
-	wm, err := wallet.NewSingleAddressWallet(sk, cm, store)
+	wm, err := wallet.NewSingleAddressWallet(sk, cm, store, s)
 	if err != nil {
 		return fmt.Errorf("failed to create wallet: %w", err)
 	}
