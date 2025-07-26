@@ -28,17 +28,13 @@ import (
 	"go.sia.tech/hostd/v2/certificates"
 	"go.sia.tech/hostd/v2/certificates/providers/selfsigned"
 	"go.sia.tech/hostd/v2/explorer"
-	"go.sia.tech/hostd/v2/host/accounts"
 	"go.sia.tech/hostd/v2/host/contracts"
-	"go.sia.tech/hostd/v2/host/registry"
 	"go.sia.tech/hostd/v2/host/settings"
 	"go.sia.tech/hostd/v2/host/settings/pin"
 	"go.sia.tech/hostd/v2/host/storage"
 	"go.sia.tech/hostd/v2/index"
 	"go.sia.tech/hostd/v2/persist/sqlite"
 	"go.sia.tech/hostd/v2/rhp"
-	rhp2 "go.sia.tech/hostd/v2/rhp/v2"
-	rhp3 "go.sia.tech/hostd/v2/rhp/v3"
 	"go.sia.tech/jape"
 	"go.uber.org/zap"
 )
@@ -165,28 +161,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer vm.Close()
 
-	rhp2Listener, err := rhp.Listen("tcp", ":0")
-	if err != nil {
-		return fmt.Errorf("failed to listen on rhp2 addr: %w", err)
-	}
-	defer rhp2Listener.Close()
-
-	rhp2Port, err := parseListenerPort(rhp2Listener.Addr().String())
-	if err != nil {
-		return fmt.Errorf("failed to parse rhp2 port: %w", err)
-	}
-
-	rhp3Listener, err := rhp.Listen("tcp", ":0")
-	if err != nil {
-		return fmt.Errorf("failed to listen on rhp3 addr: %w", err)
-	}
-	defer rhp3Listener.Close()
-
-	rhp3Port, err := parseListenerPort(rhp3Listener.Addr().String())
-	if err != nil {
-		return fmt.Errorf("failed to parse rhp3 port: %w", err)
-	}
-
 	rhp4Listener, err := rhp.Listen("tcp", ":0")
 	if err != nil {
 		return fmt.Errorf("failed to listen on rhp4 addr: %w", err)
@@ -223,8 +197,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	cfm, err := settings.NewConfigManager(sk, store, cm, vm, wm, settings.WithAlertManager(am), settings.WithLog(log.Named("settings")),
 		settings.WithValidateNetAddress(false),
 		settings.WithAnnounceInterval(144*30),
-		settings.WithRHP2Port(rhp2Port),
-		settings.WithRHP3Port(rhp3Port),
 		settings.WithRHP4Port(rhp4Port))
 	if err != nil {
 		return fmt.Errorf("failed to create settings manager: %w", err)
@@ -261,18 +233,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer index.Close()
 
-	rhp2 := rhp2.NewSessionHandler(rhp2Listener, sk, cm, s, wm, contractManager, cfm, vm, log.Named("rhp2"))
-	go rhp2.Serve()
-	defer rhp2.Close()
-
-	registry := registry.NewManager(sk, store, log.Named("registry"))
-	accounts := accounts.NewManager(store, cfm)
-
-	rhp3 := rhp3.NewSessionHandler(rhp3Listener, sk, cm, s, wm, accounts, contractManager, registry, vm, cfm, log.Named("rhp3"))
-	go rhp3.Serve()
-	defer rhp3.Close()
-
-	rhp4 := rhp4.NewServer(sk, cm, s, contractManager, wm, cfm, vm, rhp4.WithPriceTableValidity(10*time.Minute))
+	rhp4 := rhp4.NewServer(sk, cm, contractManager, wm, cfm, vm, rhp4.WithPriceTableValidity(10*time.Minute))
 	go siamux.Serve(rhp4Listener, rhp4, log.Named("rhp4.siamux"))
 	go quic.Serve(rhp4QUICListener, rhp4, log.Named("rhp4.quic"))
 
@@ -282,7 +243,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 		return fmt.Errorf("failed to create pin manager: %w", err)
 	}
 
-	a := jape.BasicAuth("sia is cool")(api.NewServer("", sk.PublicKey(), cm, s, accounts, contractManager, vm, wm, store, cfm, index, api.WithAlerts(am),
+	a := jape.BasicAuth("sia is cool")(api.NewServer("", sk.PublicKey(), cm, s, contractManager, vm, wm, store, cfm, index, api.WithAlerts(am),
 		api.WithLogger(log.Named("api")),
 		api.WithPinnedSettings(pm),
 		api.WithExplorer(ex)))
@@ -351,8 +312,6 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	log.Info("node started", zap.String("network", cm.TipState().Network.Name), zap.String("hostKey", sk.PublicKey().String()),
 		zap.String("http", httpListener.Addr().String()),
 		zap.String("p2p", string(s.Addr())),
-		zap.String("rhp2", rhp2.LocalAddr()),
-		zap.String("rhp3", rhp3.LocalAddr()),
 		zap.String("rhp4", rhp4Listener.Addr().String()),
 		zap.String("quic", rhp4QUICListener.Addr().String()))
 	m.addNodeAndWait(ctx, node, ready)

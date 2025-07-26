@@ -202,9 +202,7 @@ func (m *Manager) MineBlocks(ctx context.Context, n int, rewardAddress types.Add
 			continue
 		}
 
-		if b.V2 == nil {
-			m.syncer.BroadcastHeader(b.Header())
-		} else {
+		if b.V2 != nil {
 			m.syncer.BroadcastV2BlockOutline(gateway.OutlineBlock(b, m.chain.PoolTransactions(), m.chain.V2PoolTransactions()))
 		}
 
