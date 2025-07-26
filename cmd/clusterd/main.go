@@ -29,7 +29,6 @@ func main() {
 		apiAddr     string
 		apiPassword string
 		logLevel    string
-		network     string
 
 		siafundAddr string
 
@@ -43,7 +42,6 @@ func main() {
 	flag.StringVar(&apiAddr, "api", ":3001", "API address")
 	flag.StringVar(&apiPassword, "api.password", "", "API password")
 	flag.StringVar(&logLevel, "log", "info", "logging level")
-	flag.StringVar(&network, "network", "v1", "network to use (v1 or v2)")
 	flag.StringVar(&siafundAddr, "siafund", "", "address to send siafunds to")
 
 	flag.IntVar(&renterdCount, "renterd", 0, "number of renter daemons to run")
@@ -95,12 +93,14 @@ func main() {
 	// use modified Zen testnet
 	n, genesis := chain.TestnetZen()
 	n.InitialTarget = types.BlockID{0xFF}
-	n.HardforkDevAddr.Height = 1
-	n.HardforkTax.Height = 1
-	n.HardforkStorageProof.Height = 1
-	n.HardforkOak.Height = 1
-	n.HardforkASIC.Height = 1
-	n.HardforkFoundation.Height = 1
+	n.HardforkDevAddr.Height = 0
+	n.HardforkTax.Height = 0
+	n.HardforkStorageProof.Height = 0
+	n.HardforkOak.Height = 0
+	n.HardforkASIC.Height = 0
+	n.HardforkFoundation.Height = 0
+	n.HardforkV2.AllowHeight = 0
+	n.HardforkV2.RequireHeight = 10
 
 	if siafundAddr != "" {
 		// if the siafund address is set, send the siafunds to it
@@ -109,20 +109,6 @@ func main() {
 			log.Panic("failed to parse siafund address", zap.Error(err))
 		}
 		genesis.Transactions[0].SiafundOutputs[0].Address = addr
-	}
-
-	switch network {
-	case "v1":
-		n.HardforkV2.AllowHeight = 10000 // ideally unattainable
-		n.HardforkV2.RequireHeight = 12000
-	case "v2":
-		n.HardforkV2.AllowHeight = 2
-		n.HardforkV2.RequireHeight = 3
-	case "transition":
-		n.HardforkV2.AllowHeight = 300
-		n.HardforkV2.RequireHeight = 400
-	default:
-		log.Fatal("invalid network", zap.String("network", network))
 	}
 
 	apiListener, err := net.Listen("tcp", apiAddr)
