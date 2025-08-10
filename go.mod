@@ -7,7 +7,7 @@ toolchain go1.24.4
 require (
 	go.sia.tech/core v0.16.0
 	go.sia.tech/coreutils v0.17.0
-	go.sia.tech/explored v1.0.0-beta.1.0.20250726183827-df28027e4bbb
+	go.sia.tech/explored v1.0.0-beta.1.0.20250804133039-507ae8c4e819
 	go.sia.tech/hostd/v2 v2.3.6-0.20250810180511-7435fe26eff5
 	go.sia.tech/jape v0.14.0
 	go.sia.tech/renterd/v2 v2.6.0-beta.1.0.20250806092212-cc789890c6e3
@@ -30,7 +30,7 @@ require (
 	github.com/klauspost/reedsolomon v1.12.5 // indirect
 	github.com/mattn/go-sqlite3 v1.14.30 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
-	github.com/oschwald/geoip2-golang v1.11.0 // indirect
+	github.com/oschwald/geoip2-golang v1.13.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.53.0 // indirect
