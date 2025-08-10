@@ -5,19 +5,19 @@ go 1.24.3
 toolchain go1.24.4
 
 require (
-	go.sia.tech/core v0.14.3
-	go.sia.tech/coreutils v0.16.6-0.20250725192801-b7206fb99580
+	go.sia.tech/core v0.16.0
+	go.sia.tech/coreutils v0.17.0
 	go.sia.tech/explored v1.0.0-beta.1.0.20250726183827-df28027e4bbb
-	go.sia.tech/hostd/v2 v2.3.6-0.20250726204406-0dfdf3ac5070
+	go.sia.tech/hostd/v2 v2.3.6-0.20250810180511-7435fe26eff5
 	go.sia.tech/jape v0.14.0
-	go.sia.tech/renterd/v2 v2.5.1-0.20250726205609-1c6e2737ec62
-	go.sia.tech/walletd/v2 v2.10.5-0.20250726183218-c57a90a66725
+	go.sia.tech/renterd/v2 v2.6.0-beta.1.0.20250806092212-cc789890c6e3
+	go.sia.tech/walletd/v2 v2.10.5-0.20250805073250-f230faedfef2
 	go.uber.org/zap v1.27.0
 	lukechampine.com/frand v1.5.1
 )
 
 require (
-	github.com/aws/aws-sdk-go v1.55.7 // indirect
+	github.com/aws/aws-sdk-go v1.55.8 // indirect
 	github.com/cloudflare/cloudflare-go v0.115.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
@@ -27,8 +27,8 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
-	github.com/klauspost/reedsolomon v1.12.4 // indirect
-	github.com/mattn/go-sqlite3 v1.14.28 // indirect
+	github.com/klauspost/reedsolomon v1.12.5 // indirect
+	github.com/mattn/go-sqlite3 v1.14.30 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/oschwald/geoip2-golang v1.11.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
