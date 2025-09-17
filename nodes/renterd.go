@@ -226,6 +226,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		BusFlushInterval:         100 * time.Millisecond,
 		DownloadOverdriveTimeout: 500 * time.Millisecond,
 		UploadOverdriveTimeout:   500 * time.Millisecond,
+		UploadSectorTimeout:      500 * time.Millisecond,
 		CacheExpiry:              5 * time.Minute,
 		DownloadMaxMemory:        1 << 28, // 256 MiB
 		UploadMaxMemory:          1 << 28, // 256 MiB
@@ -255,6 +256,7 @@ func (m *Manager) StartRenterd(ctx context.Context, sk types.PrivateKey, ready c
 		MigratorNumThreads:             1,
 		RevisionSubmissionBuffer:       0,
 		MigratorAccountsRefillInterval: 10 * time.Second,
+		MigratorUploadSectorTimeout:    500 * time.Millisecond,
 		ScannerInterval:                15 * time.Second,
 		ScannerBatchSize:               10,
 		ScannerNumThreads:              1,
@@ -389,7 +391,7 @@ func newAutopilot(masterKey [32]byte, cfg config.Autopilot, bus *bus.Client, l *
 	l = l.Named("autopilot")
 
 	ctx, cancel := context.WithCancelCause(context.Background())
-	m, err := migrator.New(ctx, masterKey, a, bus, bus, cfg.MigratorHealthCutoff, cfg.MigratorNumThreads, cfg.MigratorDownloadMaxOverdrive, cfg.MigratorUploadMaxOverdrive, cfg.MigratorDownloadOverdriveTimeout, cfg.MigratorUploadOverdriveTimeout, cfg.MigratorAccountsRefillInterval, l)
+	m, err := migrator.New(ctx, masterKey, a, bus, bus, cfg.MigratorHealthCutoff, cfg.MigratorNumThreads, cfg.MigratorDownloadMaxOverdrive, cfg.MigratorUploadMaxOverdrive, cfg.MigratorDownloadOverdriveTimeout, cfg.MigratorUploadOverdriveTimeout, cfg.MigratorUploadSectorTimeout, cfg.MigratorAccountsRefillInterval, l)
 	if err != nil {
 		cancel(nil)
 		return nil, err
