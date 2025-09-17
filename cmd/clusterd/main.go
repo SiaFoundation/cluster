@@ -101,6 +101,8 @@ func main() {
 	n.HardforkFoundation.Height = 0
 	n.HardforkV2.AllowHeight = 0
 	n.HardforkV2.RequireHeight = 10
+	n.HardforkV2.FinalCutHeight = 15
+	n.BlockInterval = 250 * time.Millisecond
 
 	if siafundAddr != "" {
 		// if the siafund address is set, send the siafunds to it
