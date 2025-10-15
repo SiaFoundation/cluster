@@ -5,13 +5,13 @@ go 1.24.3
 toolchain go1.24.4
 
 require (
-	go.sia.tech/core v0.17.5
-	go.sia.tech/coreutils v0.18.4
-	go.sia.tech/explored v1.0.0-beta.1.0.20250910211447-8db30cfcddc1
-	go.sia.tech/hostd/v2 v2.4.2-0.20250910203220-667c1a1d97a7
-	go.sia.tech/jape v0.14.0
-	go.sia.tech/renterd/v2 v2.7.0-beta.1
-	go.sia.tech/walletd/v2 v2.10.5
+	go.sia.tech/core v0.18.0
+	go.sia.tech/coreutils v0.18.6
+	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
+	go.sia.tech/hostd/v2 v2.4.2-beta.1.0.20251014074254-721be4a0d1d1
+	go.sia.tech/jape v0.14.1
+	go.sia.tech/renterd/v2 v2.7.1-0.20251015183743-83417b3c794a
+	go.sia.tech/walletd/v2 v2.11.1-0.20251015164538-6106b110bfc1
 	go.uber.org/zap v1.27.0
 	lukechampine.com/frand v1.5.1
 )
@@ -22,7 +22,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/gotd/contrib v0.21.0 // indirect
+	github.com/gotd/contrib v0.21.1 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
@@ -33,7 +33,7 @@ require (
 	github.com/oschwald/geoip2-golang v1.13.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
-	github.com/quic-go/quic-go v0.54.0 // indirect
+	github.com/quic-go/quic-go v0.54.1 // indirect
 	github.com/quic-go/webtransport-go v0.9.0 // indirect
 	github.com/ryszard/goskiplist v0.0.0-20150312221310-2dfbae5fcf46 // indirect
 	github.com/shabbyrobe/gocovmerge v0.0.0-20230507112040-c3350d9342df // indirect
@@ -45,12 +45,12 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476 // indirect
-	golang.org/x/mod v0.27.0 // indirect
-	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/mod v0.28.0 // indirect
+	golang.org/x/net v0.44.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/time v0.13.0 // indirect
-	golang.org/x/tools v0.36.0 // indirect
+	golang.org/x/tools v0.37.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
