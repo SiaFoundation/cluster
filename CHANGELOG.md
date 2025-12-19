@@ -1,3 +1,9 @@
+## 0.1.6 (2025-12-19)
+
+### Fixes
+
+- Introduce HostClient trait to allow for mocking host interactions during testing.
+
 ## 0.1.5 (2025-12-19)
 
 ### Features
