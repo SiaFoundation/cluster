@@ -33,8 +33,8 @@ import (
 	"go.sia.tech/hostd/v2/host/settings/pin"
 	"go.sia.tech/hostd/v2/host/storage"
 	"go.sia.tech/hostd/v2/index"
+	"go.sia.tech/hostd/v2/monitoring"
 	"go.sia.tech/hostd/v2/persist/sqlite"
-	"go.sia.tech/hostd/v2/rhp"
 	"go.sia.tech/jape"
 	"go.uber.org/zap"
 )
@@ -161,7 +161,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 	}
 	defer vm.Close()
 
-	rhp4Listener, err := rhp.Listen("tcp", ":0")
+	rhp4Listener, err := monitoring.Listen("tcp", ":0")
 	if err != nil {
 		return fmt.Errorf("failed to listen on rhp4 addr: %w", err)
 	}
@@ -235,7 +235,7 @@ func (m *Manager) StartHostd(ctx context.Context, sk types.PrivateKey, ready cha
 
 	rhp4 := rhp4.NewServer(sk, cm, contractManager, wm, cfm, vm, rhp4.WithPriceTableValidity(10*time.Minute))
 	go siamux.Serve(rhp4Listener, rhp4, log.Named("rhp4.siamux"))
-	go quic.Serve(rhp4QUICListener, rhp4, log.Named("rhp4.quic"))
+	go quic.Serve(rhp4QUICListener, rhp4, quic.WithServeLogger(log.Named("rhp4.quic")))
 
 	ex := explorer.New("https://api.siascan.com")
 	pm, err := pin.NewManager(store, cfm, ex, pin.WithLogger(log.Named("pin")))
