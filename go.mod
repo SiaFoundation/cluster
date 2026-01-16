@@ -8,7 +8,7 @@ require (
 	go.sia.tech/core v0.19.1-0.20251215141429-887336e35dd9
 	go.sia.tech/coreutils v0.20.1
 	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
-	go.sia.tech/hostd/v2 v2.6.0-beta.3
+	go.sia.tech/hostd/v2 v2.6.0-beta.4
 	go.sia.tech/jape v0.14.1
 	go.sia.tech/renterd/v2 v2.8.0-beta.1
 	go.sia.tech/walletd/v2 v2.12.0-beta.1
@@ -28,7 +28,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/reedsolomon v1.12.6 // indirect
-	github.com/mattn/go-sqlite3 v1.14.32 // indirect
+	github.com/mattn/go-sqlite3 v1.14.33 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/oschwald/geoip2-golang v1.13.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
@@ -45,7 +45,7 @@ require (
 	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476 // indirect
 	golang.org/x/net v0.48.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect
