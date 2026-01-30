@@ -8,7 +8,7 @@ require (
 	go.sia.tech/core v0.19.1-0.20251215141429-887336e35dd9
 	go.sia.tech/coreutils v0.20.1
 	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
-	go.sia.tech/hostd/v2 v2.6.0-beta.4
+	go.sia.tech/hostd/v2 v2.6.0
 	go.sia.tech/jape v0.14.1
 	go.sia.tech/renterd/v2 v2.8.0-beta.1
 	go.sia.tech/walletd/v2 v2.12.0-beta.1
