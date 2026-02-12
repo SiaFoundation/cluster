@@ -282,28 +282,6 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	node.APIAddress = "http://" + adminListener.Addr().String()
 	node.Password = password
 
-	// wait for sync
-	waitForSync := func() error {
-		for {
-			idx, err := store.LastScannedIndex()
-			if err != nil {
-				return fmt.Errorf("failed to get last scanned index: %w", err)
-			}
-			if idx == cm.Tip() {
-				return nil
-			}
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(100 * time.Millisecond):
-			}
-		}
-	}
-
-	if err := waitForSync(); err != nil {
-		return fmt.Errorf("failed to wait for sync: %w", err)
-	}
-
 	log.Debug("node setup complete")
 
 	// mine blocks to fund the wallet
@@ -312,8 +290,20 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 		return fmt.Errorf("failed to mine blocks: %w", err)
 	}
 
-	if err := waitForSync(); err != nil {
-		return fmt.Errorf("failed to wait for sync: %w", err)
+	// wait for the subscriber to process all mined blocks
+	for {
+		idx, err := store.LastScannedIndex()
+		if err != nil {
+			return fmt.Errorf("failed to get last scanned index: %w", err)
+		}
+		if idx == cm.Tip() {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
 	}
 
 	log.Info("node started",
