@@ -10,8 +10,8 @@ require (
 	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
 	go.sia.tech/hostd/v2 v2.6.0
 	go.sia.tech/jape v0.14.1
-	go.sia.tech/renterd/v2 v2.8.0
-	go.sia.tech/walletd/v2 v2.12.0-beta.1
+	go.sia.tech/renterd/v2 v2.8.1
+	go.sia.tech/walletd/v2 v2.12.0
 	go.uber.org/zap v1.27.1
 	lukechampine.com/frand v1.5.1
 )
@@ -46,7 +46,7 @@ require (
 	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476 // indirect
 	golang.org/x/net v0.48.0 // indirect
-	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect
