@@ -2,7 +2,6 @@ package nodes
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -36,7 +35,6 @@ import (
 	"go.sia.tech/indexd/subscriber"
 	"go.sia.tech/jape"
 	"go.uber.org/zap"
-	"lukechampine.com/frand"
 )
 
 // StartIndexd starts a new indexd node. It listens on random ports and registers
@@ -56,10 +54,12 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	defer done()
 
 	pk := sk.PublicKey()
+	const password = "sia is cool"
 	node := Node{
 		ID:            NodeID(pk[:8]),
 		Type:          NodeTypeIndexd,
 		WalletAddress: types.StandardUnlockHash(pk),
+		Password:      password,
 	}
 	log := m.log.Named("indexd." + node.ID.String())
 
@@ -227,7 +227,6 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	defer pm.Close()
 
 	// start admin API
-	password := hex.EncodeToString(frand.Bytes(16))
 	adminHandler := jape.BasicAuth(password)(admin.NewAPI(cm, am, contractsMgr, hm, pm, s, wm, store, alerter,
 		admin.WithDebug(),
 		admin.WithLogger(log.Named("api.admin")),
