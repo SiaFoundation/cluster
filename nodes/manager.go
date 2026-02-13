@@ -22,6 +22,7 @@ const (
 	NodeTypeHostd    = NodeType("hostd")
 	NodeTypeWalletd  = NodeType("walletd")
 	NodeTypeExplored = NodeType("explored")
+	NodeTypeIndexd   = NodeType("indexd")
 )
 
 type (
@@ -180,6 +181,19 @@ func (m *Manager) Walletd() []Node {
 	var nodes []Node
 	for _, n := range m.nodes {
 		if n.Type == NodeTypeWalletd {
+			nodes = append(nodes, n)
+		}
+	}
+	return nodes
+}
+
+// Indexd returns a slice of all running indexd nodes in the manager.
+func (m *Manager) Indexd() []Node {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var nodes []Node
+	for _, n := range m.nodes {
+		if n.Type == NodeTypeIndexd {
 			nodes = append(nodes, n)
 		}
 	}

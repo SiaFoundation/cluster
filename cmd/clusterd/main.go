@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
+	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"go.sia.tech/cluster/api"
 	"go.sia.tech/cluster/nodes"
 	"go.sia.tech/core/gateway"
@@ -36,6 +37,7 @@ func main() {
 		hostdCount    int
 		walletdCount  int
 		exploredCount int
+		indexdCount   int
 	)
 
 	flag.StringVar(&dir, "dir", "", "directory to store renter data")
@@ -48,6 +50,7 @@ func main() {
 	flag.IntVar(&hostdCount, "hostd", 0, "number of host daemons to run")
 	flag.IntVar(&walletdCount, "walletd", 0, "number of wallet daemons to run")
 	flag.IntVar(&exploredCount, "explored", 0, "number of explorer daemons to run")
+	flag.IntVar(&indexdCount, "indexd", 0, "number of indexer daemons to run")
 	flag.Parse()
 
 	cfg := zap.NewProductionEncoderConfig()
@@ -71,7 +74,7 @@ func main() {
 
 	zap.RedirectStdLog(log)
 
-	if hostdCount == 0 && renterdCount == 0 && walletdCount == 0 && exploredCount == 0 {
+	if hostdCount == 0 && renterdCount == 0 && walletdCount == 0 && exploredCount == 0 && indexdCount == 0 {
 		log.Panic("no nodes to run")
 	}
 
@@ -149,6 +152,36 @@ func main() {
 	defer s.Close()
 	go s.Run()
 
+	var pgPort int
+	if indexdCount > 0 {
+		// find a free port for embedded postgres
+		pgListener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			log.Panic("failed to find free port for postgres", zap.Error(err))
+		}
+		pgPort = pgListener.Addr().(*net.TCPAddr).Port
+		pgListener.Close()
+
+		pg := embeddedpostgres.NewDatabase(
+			embeddedpostgres.DefaultConfig().
+				Port(uint32(pgPort)).
+				DataPath(filepath.Join(dir, "pgdata")).
+				RuntimePath(filepath.Join(dir, "pgruntime")).
+				Username("postgres").
+				Password("postgres").
+				Database("postgres"),
+		)
+		if err := pg.Start(); err != nil {
+			log.Panic("failed to start embedded postgres", zap.Error(err))
+		}
+		defer func() {
+			if err := pg.Stop(); err != nil {
+				log.Error("failed to stop embedded postgres", zap.Error(err))
+			}
+		}()
+		log.Info("embedded postgres started", zap.Int("port", pgPort))
+	}
+
 	nm := nodes.NewManager(dir, cm, s, nodes.WithLog(log.Named("cluster")), nodes.WithSharedConsensus(true))
 	defer nm.Close()
 
@@ -217,6 +250,21 @@ func main() {
 			log.Panic("context canceled")
 		case <-ready:
 			log.Debug("explored ready")
+		}
+	}
+
+	for i := 0; i < indexdCount; i++ {
+		ready := make(chan struct{}, 1)
+		go func() {
+			if err := nm.StartIndexd(ctx, types.GeneratePrivateKey(), pgPort, ready); err != nil {
+				cancel()
+				log.Error("indexd failed to start", zap.Error(err))
+			}
+		}()
+		select {
+		case <-ctx.Done():
+			log.Panic("context canceled")
+		case <-ready:
 		}
 	}
 
