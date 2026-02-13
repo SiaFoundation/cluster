@@ -166,8 +166,9 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	}
 
 	hc2 := client2.New(client2.NewProvider(hosts.NewHostStore(store)))
+	alerter := alerts.NewManager()
 
-	hm, err := hosts.NewManager(s, locator, hc2, store,
+	hm, err := hosts.NewManager(s, locator, hc2, store, alerter,
 		hosts.WithLogger(log.Named("hosts")),
 		hosts.WithScanFrequency(200*time.Millisecond),
 		hosts.WithScanInterval(time.Second))
@@ -200,7 +201,6 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	}
 	defer contractsMgr.Close()
 
-	alerter := alerts.NewManager()
 	slabsMgr, err := slabs.NewManager(cm, am, contractsMgr, hm, store, hc2, alerter,
 		keys.DerivePrivateKey(sk, "migration"),
 		keys.DerivePrivateKey(sk, "integrity"),
