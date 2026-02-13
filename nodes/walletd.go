@@ -125,7 +125,7 @@ func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) (err 
 	}
 	defer wm.Close()
 
-	api := jape.BasicAuth("sia is cool")(api.NewServer(cm, s, wm, api.WithLogger(log.Named("api"))))
+	api := jape.BasicAuth("sia is cool")(api.NewServer(store, cm, s, wm, api.WithLogger(log.Named("api"))))
 	server := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
