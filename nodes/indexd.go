@@ -286,7 +286,7 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			default:
+			case <-time.After(100 * time.Millisecond):
 			}
 			idx, err := store.LastScannedIndex()
 			if err != nil {
