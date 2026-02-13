@@ -10,8 +10,8 @@ require (
 	go.sia.tech/hostd/v2 v2.6.0
 	go.sia.tech/indexd v0.0.7-0.20260213144115-c8d05616f5a1
 	go.sia.tech/jape v0.14.1
-	go.sia.tech/renterd/v2 v2.8.0
-	go.sia.tech/walletd/v2 v2.12.0-beta.1
+	go.sia.tech/renterd/v2 v2.8.1
+	go.sia.tech/walletd/v2 v2.12.0
 	go.uber.org/zap v1.27.1
 	lukechampine.com/frand v1.5.1
 )
