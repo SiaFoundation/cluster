@@ -11,4 +11,7 @@ env:
 
 jobs:
   test:
+    - name: Auth for GitHub private modules
+      run: |
+        git config --global url."https://x-access-token:${{ secrets.REPO_INDEXD_ACCESS }}@github.com/".insteadOf "https://github.com/"
     uses: SiaFoundation/workflows/.github/workflows/go-test.yml@master
