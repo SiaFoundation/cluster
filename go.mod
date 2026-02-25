@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/fergusstrange/embedded-postgres v1.33.0
 	go.sia.tech/core v0.19.1-0.20251215141429-887336e35dd9
-	go.sia.tech/coreutils v0.21.0
+	go.sia.tech/coreutils v0.21.1
 	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
 	go.sia.tech/hostd/v2 v2.6.0
 	go.sia.tech/indexd v0.0.7-0.20260213144115-c8d05616f5a1
