@@ -1,6 +1,6 @@
 module go.sia.tech/cluster // v0.1.5
 
-go 1.25
+go 1.26.0
 
 require (
 	github.com/fergusstrange/embedded-postgres v1.33.0
