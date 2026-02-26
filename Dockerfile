@@ -2,6 +2,9 @@ FROM docker.io/library/golang:1.26 AS builder
 
 WORKDIR /app
 
+# install git-lfs for indexd dependency (contains LFS-tracked files)
+RUN apt-get update && apt-get install -y git-lfs && rm -rf /var/lib/apt/lists/*
+
 # setup auth for indexd package access
 RUN mkdir -p ~/.ssh \
     && chmod 700 ~/.ssh \
