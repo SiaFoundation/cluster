@@ -2,6 +2,19 @@ FROM docker.io/library/golang:1.26 AS builder
 
 WORKDIR /app
 
+# setup auth for indexd package access
+RUN mkdir -p ~/.ssh \
+    && chmod 700 ~/.ssh \
+    && ssh-keyscan github.com >> ~/.ssh/known_hosts \
+    && chmod 644 ~/.ssh/known_hosts
+
+COPY indexd_ed25519 /root/.ssh/id_ed25519
+RUN chmod 600 ~/.ssh/id_ed25519
+RUN git config --global url."git@github.com:".insteadOf "https://github.com/"
+RUN git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"
+
+ENV GOPRIVATE=go.sia.tech/indexd
+
 # get dependencies
 COPY go.mod go.sum ./
 RUN go mod download
