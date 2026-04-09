@@ -23,8 +23,7 @@ import (
 	"go.sia.tech/indexd/alerts"
 	"go.sia.tech/indexd/api/admin"
 	"go.sia.tech/indexd/api/app"
-	"go.sia.tech/indexd/client"
-	client2 "go.sia.tech/indexd/client/v2"
+	client "go.sia.tech/indexd/client/v2"
 	"go.sia.tech/indexd/contracts"
 	"go.sia.tech/indexd/geoip"
 	"go.sia.tech/indexd/hosts"
@@ -160,12 +159,12 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	}
 	defer wm.Close()
 
-	locator, err := geoip.NewMaxMindLocator("")
+	locator, err := geoip.NewMaxMindLocator("", log.Named("geoip"))
 	if err != nil {
 		return fmt.Errorf("failed to create geoip locator: %w", err)
 	}
 
-	hc2 := client2.New(client2.NewProvider(hosts.NewHostStore(store)))
+	hc2 := client.New(client.NewProvider(hosts.NewHostStore(store)), log.Named("client"))
 	alerter := alerts.NewManager()
 
 	hm, err := hosts.NewManager(s, locator, hc2, store, alerter,
@@ -178,7 +177,6 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	defer hm.Close()
 
 	signer := contracts.NewFormContractSigner(wm, sk)
-	dialer := client.NewDialer(cm, signer, store, log, client.WithRevisionSubmissionBuffer(1))
 
 	am, err := accounts.NewManager(store,
 		accounts.WithPruneAccountsInterval(100*time.Millisecond),
@@ -188,9 +186,11 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	}
 	defer am.Close()
 
-	f := contracts.NewFunder(hc2, signer, cm, store, log, contracts.WithRevisionSubmissionBuffer(1))
+	rev := contracts.NewRevisionManager(hc2, cm, store, 1, log.Named("revision"))
+	cl := contracts.NewContractLocker()
+	f := contracts.NewFunder(hc2, cl, rev, signer, cm, log.Named("funder"))
 
-	contractsMgr, err := contracts.NewManager(sk, am, f, cm, store, dialer, hm, s, wm,
+	contractsMgr, err := contracts.NewManager(sk, am, f, cm, store, hc2, signer, rev, cl, hm, s, wm,
 		contracts.WithLogger(log.Named("contracts")),
 		contracts.WithMaintenanceFrequency(500*time.Millisecond),
 		contracts.WithMinHostDistance(0),
