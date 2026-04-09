@@ -159,7 +159,7 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	}
 	defer wm.Close()
 
-	locator, err := geoip.NewMaxMindLocator("", log.Named("geoip"))
+	locator, err := geoip.NewMaxMindLocator(m.dir, log.Named("geoip"))
 	if err != nil {
 		return fmt.Errorf("failed to create geoip locator: %w", err)
 	}
