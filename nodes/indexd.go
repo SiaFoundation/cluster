@@ -164,10 +164,10 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 		return fmt.Errorf("failed to create geoip locator: %w", err)
 	}
 
-	hc2 := client.New(client.NewProvider(hosts.NewHostStore(store)), log.Named("client"))
+	hostClient := client.New(client.NewProvider(hosts.NewHostStore(store)), log.Named("client"))
 	alerter := alerts.NewManager()
 
-	hm, err := hosts.NewManager(s, locator, hc2, store, alerter,
+	hm, err := hosts.NewManager(s, locator, hostClient, store, alerter,
 		hosts.WithLogger(log.Named("hosts")),
 		hosts.WithScanFrequency(200*time.Millisecond),
 		hosts.WithScanInterval(time.Second))
@@ -186,11 +186,11 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	}
 	defer am.Close()
 
-	rev := contracts.NewRevisionManager(hc2, cm, store, 1, log.Named("revision"))
+	rev := contracts.NewRevisionManager(hostClient, cm, store, 1, log.Named("revision"))
 	cl := contracts.NewContractLocker()
-	f := contracts.NewFunder(hc2, cl, rev, signer, cm, log.Named("funder"))
+	f := contracts.NewFunder(hostClient, cl, rev, signer, cm, log.Named("funder"))
 
-	contractsMgr, err := contracts.NewManager(sk, am, f, cm, store, hc2, signer, rev, cl, hm, s, wm,
+	contractsMgr, err := contracts.NewManager(sk, am, f, cm, store, hostClient, signer, rev, cl, hm, s, wm,
 		contracts.WithLogger(log.Named("contracts")),
 		contracts.WithMaintenanceFrequency(500*time.Millisecond),
 		contracts.WithMinHostDistance(0),
@@ -201,7 +201,7 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	}
 	defer contractsMgr.Close()
 
-	slabsMgr, err := slabs.NewManager(cm, am, contractsMgr, hm, store, hc2, alerter,
+	slabsMgr, err := slabs.NewManager(cm, am, contractsMgr, hm, store, hostClient, alerter,
 		keys.DerivePrivateKey(sk, "migration"),
 		keys.DerivePrivateKey(sk, "integrity"),
 		slabs.WithLogger(log.Named("slabs")),
