@@ -3,14 +3,14 @@ module go.sia.tech/cluster // v0.1.5
 go 1.26.0
 
 require (
-	github.com/fergusstrange/embedded-postgres v1.33.0
-	go.sia.tech/core v0.19.1-0.20260326151920-bbeb92b26458
-	go.sia.tech/coreutils v0.21.2-0.20260327081620-0c3739d3b615
+	github.com/fergusstrange/embedded-postgres v1.34.0
+	go.sia.tech/core v0.19.1
+	go.sia.tech/coreutils v0.21.2
 	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
-	go.sia.tech/hostd/v2 v2.6.0
+	go.sia.tech/hostd/v2 v2.7.0
 	go.sia.tech/indexd v0.1.1-0.20260408142741-3ec7d3af7e4c
 	go.sia.tech/jape v0.14.1
-	go.sia.tech/renterd/v2 v2.8.1
+	go.sia.tech/renterd/v2 v2.9.0
 	go.sia.tech/walletd/v2 v2.12.0
 	go.uber.org/zap v1.27.1
 	lukechampine.com/frand v1.5.1
@@ -35,7 +35,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/reedsolomon v1.13.3 // indirect
 	github.com/lib/pq v1.10.9 // indirect
-	github.com/mattn/go-sqlite3 v1.14.33 // indirect
+	github.com/mattn/go-sqlite3 v1.14.34 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/oschwald/geoip2-golang v1.13.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
@@ -50,12 +50,12 @@ require (
 	go.sia.tech/gofakes3 v0.0.5 // indirect
 	go.sia.tech/mux v1.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476 // indirect
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.43.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
