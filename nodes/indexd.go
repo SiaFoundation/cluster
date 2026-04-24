@@ -227,7 +227,7 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	defer pm.Close()
 
 	// start admin API
-	adminHandler := jape.BasicAuth(password)(admin.NewAPI(cm, am, contractsMgr, hm, pm, s, wm, store, alerter,
+	adminHandler := jape.BasicAuth(password)(admin.NewAPI(cm, am, contractsMgr, hm, pm, slabsMgr, sub, s, wm, alerter,
 		admin.WithDebug(),
 		admin.WithLogger(log.Named("api.admin")),
 		admin.WithExplorer(explorer)))
@@ -255,7 +255,7 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 
 	// start app API
 	appAPIAddr := fmt.Sprintf("http://%s", appListener.Addr().String())
-	appHandler, err := app.NewAPI(appAPIAddr, store, am, contractsMgr, slabsMgr,
+	appHandler, err := app.NewAPI(appAPIAddr, hm, am, contractsMgr, slabsMgr,
 		app.WithLogger(log.Named("api.app")))
 	if err != nil {
 		return fmt.Errorf("failed to create app API: %w", err)

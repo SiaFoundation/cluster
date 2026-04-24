@@ -8,9 +8,9 @@ require (
 	go.sia.tech/coreutils v0.21.3
 	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
 	go.sia.tech/hostd/v2 v2.8.0
-	go.sia.tech/indexd v0.1.1-0.20260408142741-3ec7d3af7e4c
+	go.sia.tech/indexd v0.1.1-0.20260423091343-7e1ff499dc92
 	go.sia.tech/jape v0.14.1
-	go.sia.tech/renterd/v2 v2.9.0
+	go.sia.tech/renterd/v2 v2.9.1-beta.2
 	go.sia.tech/walletd/v2 v2.12.0
 	go.uber.org/zap v1.27.1
 	lukechampine.com/frand v1.5.1
@@ -28,7 +28,7 @@ require (
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.9.1 // indirect
+	github.com/jackc/pgx/v5 v5.9.2 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
@@ -36,7 +36,7 @@ require (
 	github.com/klauspost/reedsolomon v1.13.3 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/mattn/go-sqlite3 v1.14.42 // indirect
-	github.com/montanaflynn/stats v0.7.1 // indirect
+	github.com/montanaflynn/stats v0.9.0 // indirect
 	github.com/oschwald/geoip2-golang v1.13.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
