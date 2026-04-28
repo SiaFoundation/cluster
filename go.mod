@@ -8,11 +8,11 @@ require (
 	go.sia.tech/coreutils v0.21.3
 	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
 	go.sia.tech/hostd/v2 v2.8.0
-	go.sia.tech/indexd v0.1.1-0.20260423091343-7e1ff499dc92
+	go.sia.tech/indexd v0.2.0
 	go.sia.tech/jape v0.14.1
-	go.sia.tech/renterd/v2 v2.9.1-beta.2
+	go.sia.tech/renterd/v2 v2.9.1
 	go.sia.tech/walletd/v2 v2.12.0
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 	lukechampine.com/frand v1.5.1
 )
 
