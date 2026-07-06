@@ -4,10 +4,10 @@ go 1.26.0
 
 require (
 	github.com/fergusstrange/embedded-postgres v1.34.0
-	go.sia.tech/core v0.21.1
-	go.sia.tech/coreutils v0.22.1
+	go.sia.tech/core v0.21.4
+	go.sia.tech/coreutils v0.23.3
 	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
-	go.sia.tech/hostd/v2 v2.9.0
+	go.sia.tech/hostd/v2 v2.10.1
 	go.sia.tech/indexd v0.3.0
 	go.sia.tech/jape v0.14.1
 	go.sia.tech/renterd/v2 v2.9.2
@@ -35,7 +35,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/reedsolomon v1.14.1 // indirect
 	github.com/lib/pq v1.10.9 // indirect
-	github.com/mattn/go-sqlite3 v1.14.45 // indirect
+	github.com/mattn/go-sqlite3 v1.14.47 // indirect
 	github.com/montanaflynn/stats v0.9.0 // indirect
 	github.com/oschwald/geoip2-golang v1.13.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
@@ -52,11 +52,11 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476 // indirect
-	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools v0.45.0 // indirect
+	golang.org/x/tools v0.47.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
