@@ -25,3 +25,4 @@ jobs:
       cgo-enabled: 1
       project: clusterd
       project-desc: "clusterd: A tool for local e2e testing of Sia nodes"
+      version-tag: ${{ github.ref_name }}
