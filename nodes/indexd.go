@@ -201,7 +201,7 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	}
 	defer contractsMgr.Close()
 
-	slabsMgr, err := slabs.NewManager(cm, am, contractsMgr, hm, store, hostClient, alerter,
+	slabsMgr, err := slabs.NewManager(am, contractsMgr, hm, store, hostClient, alerter,
 		keys.DerivePrivateKey(sk, "migration"),
 		keys.DerivePrivateKey(sk, "integrity"),
 		slabs.WithLogger(log.Named("slabs")),
