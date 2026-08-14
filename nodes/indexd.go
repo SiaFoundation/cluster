@@ -30,6 +30,7 @@ import (
 	"go.sia.tech/indexd/keys"
 	"go.sia.tech/indexd/persist/postgres"
 	"go.sia.tech/indexd/pins"
+	"go.sia.tech/indexd/sharing"
 	"go.sia.tech/indexd/slabs"
 	"go.sia.tech/indexd/subscriber"
 	"go.sia.tech/jape"
@@ -100,12 +101,12 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 			return fmt.Errorf("failed to open bolt db: %w", err)
 		}
 		defer bdb.Close()
-		dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis, nil)
+		dbstore, err := chain.NewDBStore(bdb, network, genesis, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create dbstore: %w", err)
 		}
 
-		cm = chain.NewManager(dbstore, tipState)
+		cm = chain.NewManager(dbstore)
 	}
 
 	// start a syncer
@@ -226,6 +227,12 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	}
 	defer pm.Close()
 
+	sm, err := sharing.NewManager(store)
+	if err != nil {
+		return fmt.Errorf("failed to create sharing manager: %w", err)
+	}
+	defer sm.Close()
+
 	// start admin API
 	adminHandler := jape.BasicAuth(password)(admin.NewAPI(cm, am, contractsMgr, hm, pm, slabsMgr, sub, s, wm, alerter,
 		admin.WithDebug(),
@@ -256,7 +263,7 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	// start app API
 	appAPIAddr := fmt.Sprintf("http://%s", appListener.Addr().String())
 	appHandler, err := app.NewAPI(appAPIAddr, hm, am, contractsMgr, slabsMgr,
-		app.WithLogger(log.Named("api.app")))
+		sm, app.WithLogger(log.Named("api.app")))
 	if err != nil {
 		return fmt.Errorf("failed to create app API: %w", err)
 	}
