@@ -85,12 +85,12 @@ func (m *Manager) StartWalletd(ctx context.Context, ready chan<- struct{}) (err 
 			return fmt.Errorf("failed to open bolt db: %w", err)
 		}
 		defer bdb.Close()
-		dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis, nil)
+		dbstore, err := chain.NewDBStore(bdb, network, genesis, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create dbstore: %w", err)
 		}
 
-		cm = chain.NewManager(dbstore, tipState)
+		cm = chain.NewManager(dbstore)
 	}
 
 	syncerListener, err := net.Listen("tcp", ":0")
