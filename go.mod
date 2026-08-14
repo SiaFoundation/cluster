@@ -5,10 +5,10 @@ go 1.26.0
 require (
 	github.com/fergusstrange/embedded-postgres v1.34.0
 	go.sia.tech/core v0.21.7
-	go.sia.tech/coreutils v0.23.6-0.20260717131215-dfd89d065259
+	go.sia.tech/coreutils v0.24.0
 	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
 	go.sia.tech/hostd/v2 v2.10.2
-	go.sia.tech/indexd v0.4.1
+	go.sia.tech/indexd v0.4.2
 	go.sia.tech/jape v0.14.1
 	go.sia.tech/renterd/v2 v2.9.3
 	go.sia.tech/walletd/v2 v2.15.2
@@ -40,8 +40,8 @@ require (
 	github.com/oschwald/geoip2-golang v1.13.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
-	github.com/quic-go/quic-go v0.60.0 // indirect
-	github.com/quic-go/webtransport-go v0.11.1 // indirect
+	github.com/quic-go/quic-go v0.61.0 // indirect
+	github.com/quic-go/webtransport-go v0.12.0 // indirect
 	github.com/ryszard/goskiplist v0.0.0-20150312221310-2dfbae5fcf46 // indirect
 	github.com/shabbyrobe/gocovmerge v0.0.0-20230507112040-c3350d9342df // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
