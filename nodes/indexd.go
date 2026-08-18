@@ -100,12 +100,12 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 			return fmt.Errorf("failed to open bolt db: %w", err)
 		}
 		defer bdb.Close()
-		dbstore, tipState, err := chain.NewDBStore(bdb, network, genesis, nil)
+		dbstore, err := chain.NewDBStore(bdb, network, genesis, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create dbstore: %w", err)
 		}
 
-		cm = chain.NewManager(dbstore, tipState)
+		cm = chain.NewManager(dbstore)
 	}
 
 	// start a syncer
