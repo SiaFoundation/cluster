@@ -8,7 +8,7 @@ require (
 	go.sia.tech/coreutils v0.24.0
 	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
 	go.sia.tech/hostd/v2 v2.10.2
-	go.sia.tech/indexd v0.4.3
+	go.sia.tech/indexd v0.4.4
 	go.sia.tech/jape v0.14.1
 	go.sia.tech/renterd/v2 v2.9.3
 	go.sia.tech/walletd/v2 v2.15.2
@@ -50,12 +50,12 @@ require (
 	go.sia.tech/gofakes3 v0.0.5 // indirect
 	go.sia.tech/mux v1.5.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.54.0 // indirect
+	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.48.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
