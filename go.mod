@@ -7,7 +7,7 @@ require (
 	go.sia.tech/core v0.21.7
 	go.sia.tech/coreutils v0.24.0
 	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
-	go.sia.tech/hostd/v2 v2.10.2
+	go.sia.tech/hostd/v2 v2.10.3
 	go.sia.tech/indexd v0.4.4
 	go.sia.tech/jape v0.14.3
 	go.sia.tech/renterd/v2 v2.9.3
@@ -39,7 +39,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/reedsolomon v1.14.1 // indirect
 	github.com/lib/pq v1.10.9 // indirect
-	github.com/mattn/go-sqlite3 v1.14.47 // indirect
+	github.com/mattn/go-sqlite3 v1.14.50 // indirect
 	github.com/montanaflynn/stats v0.10.0 // indirect
 	github.com/oschwald/geoip2-golang v1.13.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
