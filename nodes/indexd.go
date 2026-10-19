@@ -168,7 +168,7 @@ func (m *Manager) StartIndexd(ctx context.Context, sk types.PrivateKey, pgPort i
 	hostClient := client.New(client.NewProvider(hosts.NewHostStore(store)), log.Named("client"))
 	alerter := alerts.NewManager()
 
-	hm, err := hosts.NewManager(s, locator, hostClient, store, alerter,
+	hm, err := hosts.NewManager(locator, hostClient, store, alerter,
 		hosts.WithLogger(log.Named("hosts")),
 		hosts.WithScanFrequency(200*time.Millisecond),
 		hosts.WithScanInterval(time.Second))
