@@ -8,8 +8,8 @@ require (
 	go.sia.tech/coreutils v0.25.0
 	go.sia.tech/explored v1.0.0-beta.1.0.20251014084113-99eb535185c2
 	go.sia.tech/hostd/v2 v2.11.0
-	go.sia.tech/indexd v0.6.0
-	go.sia.tech/jape v0.14.4-0.20260925150222-12f19b877458
+	go.sia.tech/indexd v0.6.1
+	go.sia.tech/jape v0.14.4
 	go.sia.tech/renterd/v2 v2.9.4
 	go.sia.tech/walletd/v2 v2.15.2
 	go.uber.org/zap v1.28.0
@@ -24,7 +24,7 @@ require (
 	github.com/cloudflare/cloudflare-go v0.118.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/dunglas/httpsfv v1.1.1 // indirect
-	github.com/fxamacker/cbor/v2 v2.9.3 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
@@ -36,7 +36,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
-	github.com/klauspost/compress v1.20.0 // indirect
+	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/reedsolomon v1.14.2 // indirect
 	github.com/lib/pq v1.10.9 // indirect
