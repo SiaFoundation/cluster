@@ -7,7 +7,7 @@ require (
 	go.sia.tech/core v0.21.8
 	go.sia.tech/coreutils v0.25.2
 	go.sia.tech/explored v0.4.5
-	go.sia.tech/hostd/v2 v2.11.0
+	go.sia.tech/hostd/v2 v2.12.0
 	go.sia.tech/indexd v0.6.2
 	go.sia.tech/jape v0.14.4
 	go.sia.tech/renterd/v2 v2.9.5
@@ -21,7 +21,7 @@ require (
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.4 // indirect
 	github.com/bytedance/sonic/loader v0.5.2 // indirect
-	github.com/cloudflare/cloudflare-go v0.118.0 // indirect
+	github.com/cloudflare/cloudflare-go v0.119.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/dunglas/httpsfv v1.1.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.6 // indirect
