@@ -1,3 +1,9 @@
+## 0.1.7 (2026-10-30)
+
+### Fixes
+
+- Update explored to v0.4.5, indexd to v0.6.2 and renterd to v2.9.5
+
 ## 0.1.6 (2026-04-28)
 
 ### Features
