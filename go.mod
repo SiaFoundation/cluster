@@ -11,7 +11,7 @@ require (
 	go.sia.tech/indexd v0.6.2
 	go.sia.tech/jape v0.14.4
 	go.sia.tech/renterd/v2 v2.9.5
-	go.sia.tech/walletd/v2 v2.15.2
+	go.sia.tech/walletd/v2 v2.16.0
 	go.uber.org/zap v1.28.0
 	lukechampine.com/frand v1.5.1
 )
