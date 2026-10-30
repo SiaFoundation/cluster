@@ -3,6 +3,9 @@ changelog = "CHANGELOG.md"
 versioned_files = ["go.mod"]
 ignore_go_major_versioning = true
 
+[changes]
+ignore_conventional_commits = true
+
 [[workflows]]
 name = "document-change"
 
@@ -44,10 +47,25 @@ template = "This PR was created automatically. Merging it will create a new rele
 variables = { "$changelog" = "ChangelogEntry", "$version" = "Version" }
 
 [[workflows]]
-name = "release"
+name = "tag"
 
 [[workflows.steps]]
-type = "Release"
+type = "Command"
+command = """
+set -e
+if git rev-parse -q --verify "refs/tags/v$version^{commit}" >/dev/null; then
+  if [ "$(git rev-parse "refs/tags/v$version^{commit}")" != "$(git rev-parse HEAD)" ]; then
+    echo "tag v$version already exists and does not point to HEAD" >&2
+    exit 1
+  fi
+  echo "tag v$version already points to HEAD, skipping"
+else
+  git tag "v$version"
+fi
+git push origin "v$version"
+"""
+shell = true
+variables = { "$version" = "Version" }
 
 [github]
 owner = "SiaFoundation"

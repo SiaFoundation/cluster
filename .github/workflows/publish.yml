@@ -1,28 +1,47 @@
 name: Publish
 
-# Controls when the action will run.
 on:
-  # Triggers the workflow on new SemVer tags
   push:
     branches:
       - master
-    tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
-      - "v[0-9]+.[0-9]+.[0-9]+-**"
 
 concurrency:
-  group: ${{ github.workflow }}
+  # ordinary pushes share one group so only the newest pending run survives;
+  # release merges get their own group so a later push can never replace a pending release
+  group: "${{ github.workflow }}-${{ contains(github.event.head_commit.message, 'chore: prepare release') && github.sha || github.ref_name }}"
   cancel-in-progress: false
 
+permissions: {}
+
 jobs:
-  publish:
-    uses: SiaFoundation/workflows/.github/workflows/go-publish.yml@dddded471aae1c7b6f0fbc388d603b8b16336f6f # not on latest because of changes to workflow
-    secrets: inherit
+  test:
+    permissions:
+      contents: read
+    uses: SiaFoundation/workflows/.github/workflows/go-test.yml@95130e8c532eb275d3e359b4c4ae97083ae96c8f # master
     with:
-      linux-build-args: -tags=timetzdata -trimpath -a -ldflags '-s -w -linkmode external -extldflags "-static"'
-      windows-build-args: -tags=timetzdata -trimpath -a -ldflags '-s -w -linkmode external -extldflags "-static"'
-      macos-build-args: -tags=timetzdata -trimpath -a -ldflags '-s -w'
-      cgo-enabled: 1
-      project: clusterd
-      project-desc: "clusterd: A tool for local e2e testing of Sia nodes"
-      version-tag: ${{ github.ref_name }}
+      go-version: "1.27"
+  tag:
+    name: Tag Release
+    needs:
+      - test
+    runs-on: tenki-standard-medium-4c-8g
+    permissions:
+      contents: write
+    env:
+      # only tag when a knope prepare-release PR is merged
+      RELEASE: "${{ contains(github.event.head_commit.message, 'chore: prepare release') }}"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.RELEASE == 'true'
+        with:
+          fetch-depth: 0
+      - name: Configure Git
+        if: env.RELEASE == 'true'
+        run: |
+          git config --global user.name github-actions[bot]
+          git config --global user.email 41898282+github-actions[bot]@users.noreply.github.com
+      - uses: knope-dev/action@19617851f9f13ab2f27a05989c55efb18aca3675 # v2.1.2
+        if: env.RELEASE == 'true'
+      - name: Tag release
+        if: env.RELEASE == 'true'
+        run: knope tag --verbose
