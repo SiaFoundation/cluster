@@ -1,4 +1,4 @@
-FROM docker.io/library/golang:1.26 AS builder
+FROM docker.io/library/golang:1.27 AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ FROM debian:bookworm-slim
 LABEL maintainer="The Sia Foundation <info@sia.tech>" \
       org.opencontainers.image.description.vendor="The Sia Foundation" \
       org.opencontainers.image.description="A cluster container for testing a local Sia network" \
-      org.opencontainers.image.source="https://github.com/SiaFoundation/hostd" \
+      org.opencontainers.image.source="https://github.com/SiaFoundation/cluster" \
       org.opencontainers.image.licenses=MIT
 
 ENV PUID=0
