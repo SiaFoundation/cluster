@@ -67,6 +67,36 @@ git push origin "v$version"
 shell = true
 variables = { "$version" = "Version" }
 
+[[workflows]]
+name = "release"
+
+[[workflows.steps]]
+type = "Command"
+command = """
+set -e
+NOTES_FILE=$(mktemp)
+# notes are read from CHANGELOG.md at runtime rather than substituted into
+# this script, so changelog content can never be interpreted as shell
+awk -v v="$version" '
+  /^## / { if (found) exit; if ($2 == v) { found = 1; next } }
+  found { print }
+' CHANGELOG.md > "$NOTES_FILE"
+if ! [ -s "$NOTES_FILE" ]; then
+  echo "no changelog entry found for $version" >&2
+  exit 1
+fi
+case v$version in *-*) PRERELEASE=--prerelease;; esac
+if gh release view "v$version" >/dev/null 2>&1; then
+  # re-run after a partial failure: reconcile notes and assets instead of failing
+  gh release edit "v$version" --title "v$version" --notes-file "$NOTES_FILE" $PRERELEASE
+  gh release upload "v$version" release/* --clobber
+else
+  gh release create "v$version" --title "v$version" --notes-file "$NOTES_FILE" $PRERELEASE release/*
+fi
+"""
+shell = true
+variables = { "$version" = "Version" }
+
 [github]
 owner = "SiaFoundation"
 repo = "cluster"
