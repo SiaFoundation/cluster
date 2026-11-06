@@ -5,13 +5,13 @@ go 1.27.0
 require (
 	github.com/fergusstrange/embedded-postgres v1.34.0
 	go.sia.tech/core v0.21.8
-	go.sia.tech/coreutils v0.25.2
-	go.sia.tech/explored v0.4.5
-	go.sia.tech/hostd/v2 v2.12.0
-	go.sia.tech/indexd v0.6.2
+	go.sia.tech/coreutils v0.25.3
+	go.sia.tech/explored v0.4.6
+	go.sia.tech/hostd/v2 v2.12.1
+	go.sia.tech/indexd v0.6.3
 	go.sia.tech/jape v0.14.4
-	go.sia.tech/renterd/v2 v2.9.5
-	go.sia.tech/walletd/v2 v2.16.0
+	go.sia.tech/renterd/v2 v2.9.6
+	go.sia.tech/walletd/v2 v2.16.1
 	go.uber.org/zap v1.28.0
 	lukechampine.com/frand v1.5.1
 )
@@ -41,7 +41,7 @@ require (
 	github.com/klauspost/reedsolomon v1.14.2 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/mattn/go-sqlite3 v1.14.52 // indirect
-	github.com/montanaflynn/stats v0.13.0 // indirect
+	github.com/montanaflynn/stats v0.14.0 // indirect
 	github.com/oschwald/geoip2-golang v1.13.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
