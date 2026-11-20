@@ -6,7 +6,7 @@ require (
 	github.com/fergusstrange/embedded-postgres v1.34.0
 	go.sia.tech/core v0.21.8
 	go.sia.tech/coreutils v0.25.3
-	go.sia.tech/explored v0.4.6
+	go.sia.tech/explored v0.4.7
 	go.sia.tech/hostd/v2 v2.12.1
 	go.sia.tech/indexd v0.6.3
 	go.sia.tech/jape v0.14.4
@@ -32,8 +32,8 @@ require (
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.11.0 // indirect
-	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jackc/pgx/v5 v5.12.0 // indirect
+	github.com/jackc/puddle/v2 v2.2.3 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/klauspost/compress v1.20.1 // indirect
